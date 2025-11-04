@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  kea-bi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER}
+    volumes:
+      - ../frontend:/app/frontend
+    restart: unless-stopped
