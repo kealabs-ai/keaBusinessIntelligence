@@ -1,10 +1,25 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from backend.data.connection import SQLServerConnection
 from backend.queries.sql_queries import SQLQueries
 from backend.llm.analytics import AnalyticsLLM
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, 
+                    template_folder='../../frontend/visualizacao',
+                    static_folder='../../frontend')
 analytics_llm = AnalyticsLLM()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/estilos/<path:filename>')
+def estilos(filename):
+    return send_from_directory('../../frontend/estilos', filename)
+
+@app.route('/javascript/<path:filename>')
+def javascript(filename):
+    return send_from_directory('../../frontend/javascript', filename)
 
 @app.route('/api/sales-data')
 def get_sales_data():
