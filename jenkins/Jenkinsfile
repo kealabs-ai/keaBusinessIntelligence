@@ -47,7 +47,7 @@ pipeline {
                             -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
                             -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        echo "✅ Aplicação disponível em: http://localhost:5001"
+                        echo "✅ Aplicação disponível em: http://\${SERVER_IP}:5001"
                     """
                 }
             }
@@ -72,7 +72,7 @@ pipeline {
                             -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
                             -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        echo "✅ Aplicação disponível em: http://localhost:5002"
+                        echo "✅ Aplicação disponível em: http://\${SERVER_IP}:5002"
                     """
                 }
             }
@@ -97,7 +97,7 @@ pipeline {
                             -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
                             -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        echo "✅ Aplicação disponível em: http://localhost:5000"
+                        echo "✅ Aplicação disponível em: http://\${SERVER_IP}:5000"
                     """
                 }
             }
