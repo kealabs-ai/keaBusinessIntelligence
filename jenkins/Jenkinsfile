@@ -49,6 +49,7 @@ pipeline {
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
                         SERVER_IP=\$(curl -s ifconfig.me)
                         echo "✅ Aplicação disponível em: http://\$SERVER_IP:5001"
+                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5001/api/test"
                     """
                 }
             }
@@ -75,6 +76,7 @@ pipeline {
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
                         SERVER_IP=\$(curl -s ifconfig.me)
                         echo "✅ Aplicação disponível em: http://\$SERVER_IP:5002"
+                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5002/api/test"
                     """
                 }
             }
@@ -101,6 +103,7 @@ pipeline {
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
                         SERVER_IP=\$(curl -s ifconfig.me)
                         echo "✅ Aplicação disponível em: http://\$SERVER_IP:5000"
+                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5000/api/test"
                     """
                 }
             }

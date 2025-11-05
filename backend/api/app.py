@@ -13,6 +13,10 @@ analytics_llm = AnalyticsLLM()
 def index():
     return render_template('index.html')
 
+@app.route('/api/test')
+def test():
+    return jsonify({'status': 'success', 'message': 'API funcionando corretamente', 'version': '1.0'})
+
 @app.route('/estilos/<path:filename>')
 def estilos(filename):
     return send_from_directory('../../frontend/estilos', filename)
