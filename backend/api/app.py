@@ -17,7 +17,7 @@ def index():
 
 @app.route('/business-intelligence')
 def business_intelligence():
-    return send_from_directory('../../frontend/dashboard/businessIntelligence', 'BusinessIntelligence.html')
+    return send_from_directory('../../frontend/dashboard/businessIntelligence', 'BusinessIntelligence.jsx')
 
 @app.route('/bi-components/<path:filename>')
 def bi_components(filename):
