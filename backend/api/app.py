@@ -15,6 +15,10 @@ analytics_llm = AnalyticsLLM()
 def index():
     return render_template('index.html')
 
+@app.route('/dashboard')
+def dashboard():
+    return send_from_directory('../../frontend/dashboard/build', 'index.html')
+
 @app.route('/api/test')
 def test():
     return jsonify({'status': 'success', 'message': 'API funcionando corretamente', 'version': '1.0'})
