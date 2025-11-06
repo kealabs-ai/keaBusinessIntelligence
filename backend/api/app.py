@@ -6,22 +6,22 @@ from backend.llm.analytics import AnalyticsLLM
 import os
 
 app = Flask(__name__, 
-                    template_folder='../../frontend/visualizacao',
-                    static_folder='../../frontend')
+                    template_folder='../../frontend/build',
+                    static_folder='../../frontend/build/static')
 CORS(app)
 analytics_llm = AnalyticsLLM()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('../../frontend/build', 'index.html')
 
-@app.route('/business-intelligence')
-def business_intelligence():
-    return send_from_directory('../../frontend/dashboard/businessIntelligence', 'BusinessIntelligence.jsx')
+@app.route('/dashboard')
+def dashboard():
+    return send_from_directory('../../frontend/build', 'index.html')
 
-@app.route('/bi-components/<path:filename>')
-def bi_components(filename):
-    return send_from_directory('../../frontend/dashboard/businessIntelligence', filename)
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory('../../frontend/build/static', filename)
 
 @app.route('/api/test')
 def test():
