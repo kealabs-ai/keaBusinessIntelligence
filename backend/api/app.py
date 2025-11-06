@@ -17,7 +17,11 @@ def index():
 
 @app.route('/dashboard')
 def dashboard():
-    return send_from_directory('../../frontend/dashboard/build', 'index.html')
+    return send_from_directory('../../frontend/dashboard/public', 'index.html')
+
+@app.route('/dashboard-components/<path:filename>')
+def dashboard_components(filename):
+    return send_from_directory('../../frontend/dashboard/public', filename)
 
 @app.route('/api/test')
 def test():
