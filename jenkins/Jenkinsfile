@@ -16,14 +16,12 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 script {
-                    sh '''
-                        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                        sudo apt-get install -y nodejs
-                    '''
-                }
-                dir('frontend/businessIntelligence') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                    docker.image('node:18-alpine').inside {
+                        dir('frontend/businessIntelligence') {
+                            sh 'npm install'
+                            sh 'npm run build'
+                        }
+                    }
                 }
             }
         }
@@ -38,8 +36,12 @@ pipeline {
         
         stage('Test Frontend') {
             steps {
-                dir('frontend/businessIntelligence') {
-                    sh 'npm test -- --coverage --watchAll=false || true'
+                script {
+                    docker.image('node:18-alpine').inside {
+                        dir('frontend/businessIntelligence') {
+                            sh 'npm test -- --coverage --watchAll=false || true'
+                        }
+                    }
                 }
             }
         }
