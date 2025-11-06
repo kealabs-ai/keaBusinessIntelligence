@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask_cors import CORS
 from backend.data.connection import SQLServerConnection
 from backend.queries.sql_queries import SQLQueries
 from backend.llm.analytics import AnalyticsLLM
@@ -7,6 +8,7 @@ import os
 app = Flask(__name__, 
                     template_folder='../../frontend/visualizacao',
                     static_folder='../../frontend')
+CORS(app)
 analytics_llm = AnalyticsLLM()
 
 @app.route('/')
