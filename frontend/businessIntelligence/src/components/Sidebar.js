@@ -7,19 +7,20 @@ import {
   ListItemText,
   Typography,
   Box,
-  Button
+  IconButton
 } from '@mui/material';
 import {
   Dashboard,
   Person,
   ShoppingCart,
   Article,
-  Login
+  Login,
+  ChevronLeft
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
 
-function Sidebar() {
+function Sidebar({ open, onClose }) {
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard /> },
     { text: 'User', icon: <Person /> },
@@ -30,7 +31,8 @@ function Sidebar() {
 
   return (
     <Drawer
-      variant="permanent"
+      variant="persistent"
+      open={open}
       sx={{
         width: drawerWidth,
         flexShrink: 0,
@@ -40,10 +42,13 @@ function Sidebar() {
         },
       }}
     >
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" noWrap component="div">
-          Minimal UI
+      <Box sx={{ display: 'flex', alignItems: 'center', p: 1, justifyContent: 'space-between' }}>
+        <Typography variant="h6" noWrap component="div" sx={{ ml: 1 }}>
+          Kea BI
         </Typography>
+        <IconButton onClick={onClose}>
+          <ChevronLeft />
+        </IconButton>
       </Box>
       <List>
         {menuItems.map((item) => (
@@ -53,12 +58,6 @@ function Sidebar() {
           </ListItem>
         ))}
       </List>
-      <Box sx={{ p: 2, mt: 'auto' }}>
-        <Typography variant="body2" sx={{ mb: 1 }}>Team 1</Typography>
-        <Button variant="outlined" size="small" fullWidth>
-          Upgrade to Pro
-        </Button>
-      </Box>
     </Drawer>
   );
 }

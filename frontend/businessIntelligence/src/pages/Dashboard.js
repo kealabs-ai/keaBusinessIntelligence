@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -20,10 +20,25 @@ import {
   ConversionRates,
   CurrentSubject
 } from '../components/Charts';
+import { useTheme } from '../index';
 
 const drawerWidth = 240;
 
 function Dashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { darkMode, setDarkMode } = useTheme();
+
+  const handleMenuClick = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleSidebarClose = () => {
+    setSidebarOpen(false);
+  };
+
+  const handleThemeToggle = () => {
+    setDarkMode(!darkMode);
+  };
   const tasks = [
     { id: 1, text: 'Create FireStone Logo', completed: true },
     { id: 2, text: 'Add SCSS and JS files', completed: false },
@@ -48,16 +63,24 @@ function Dashboard() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <Header />
-      <Sidebar />
+      <Header 
+        onMenuClick={handleMenuClick}
+        darkMode={darkMode}
+        onThemeToggle={handleThemeToggle}
+      />
+      <Sidebar 
+        open={sidebarOpen}
+        onClose={handleSidebarClose}
+      />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          mt: 8
+          width: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
+          ml: sidebarOpen ? `${drawerWidth}px` : 0,
+          mt: 8,
+          transition: 'margin 0.3s, width 0.3s'
         }}
       >
         <Typography variant="h4" gutterBottom>
