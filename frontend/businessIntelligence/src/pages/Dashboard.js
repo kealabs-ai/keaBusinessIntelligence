@@ -86,7 +86,23 @@ function Dashboard() {
             sm: sidebarOpen ? `${drawerWidth}px` : 0
           },
           mt: 8,
-          transition: 'margin 0.3s, width 0.3s'
+          height: 'calc(100vh - 64px)',
+          overflow: 'auto',
+          transition: 'margin 0.3s, width 0.3s',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: 'rgba(0,0,0,0.5)',
+          },
         }}
       >
         <Typography variant="h4" gutterBottom>
