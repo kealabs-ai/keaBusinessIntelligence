@@ -38,7 +38,16 @@ function Header({ onMenuClick, darkMode, onThemeToggle }) {
   };
 
   return (
-    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <AppBar 
+      position="fixed" 
+      sx={{ 
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(10px)',
+        color: 'text.primary',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}
+    >
       <Toolbar>
         <IconButton
           color="inherit"
@@ -51,6 +60,14 @@ function Header({ onMenuClick, darkMode, onThemeToggle }) {
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
           Business Intelligence
         </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+          <img 
+            src="/logo.png" 
+            alt="Logo" 
+            style={{ height: '32px', width: 'auto' }}
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton color="inherit">
             <Language />
