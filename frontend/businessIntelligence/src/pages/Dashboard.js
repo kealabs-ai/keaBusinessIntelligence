@@ -76,9 +76,15 @@ function Dashboard() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
-          ml: sidebarOpen ? `${drawerWidth}px` : 0,
+          p: { xs: 2, sm: 3 },
+          width: { 
+            xs: '100%',
+            sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
+          },
+          ml: { 
+            xs: 0,
+            sm: sidebarOpen ? `${drawerWidth}px` : 0
+          },
           mt: 8,
           transition: 'margin 0.3s, width 0.3s'
         }}
@@ -87,7 +93,7 @@ function Dashboard() {
           Hi, Welcome back 👋
         </Typography>
 
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <MetricCard title="Weekly Sales" value="714k" change="+2.6%" />
           </Grid>
@@ -159,7 +165,6 @@ function Dashboard() {
                 </List>
               </CardContent>
             </Card>
-          ))}
           </Grid>
 
           <Grid item xs={12}>

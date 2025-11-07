@@ -60,14 +60,6 @@ function Header({ onMenuClick, darkMode, onThemeToggle }) {
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
           Business Intelligence
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-          <img 
-            src="/logo.png" 
-            alt="Logo" 
-            style={{ height: '32px', width: 'auto' }}
-            onError={(e) => { e.target.style.display = 'none' }}
-          />
-        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton color="inherit">
             <Language />
