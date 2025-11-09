@@ -17,8 +17,9 @@ pipeline {
         stage('Install Node.js') {
             steps {
                 sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
-                    sudo apt-get install -y nodejs
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get update
+                    apt-get install -y nodejs
                     node --version
                     npm --version
                 '''
@@ -45,18 +46,12 @@ pipeline {
         stage('Deploy to Development') {
             steps {
                 sh '''
-                    # Parar serviços existentes
-                    sudo systemctl stop kea-bi-dev || true
-                    
                     # Copiar arquivos de build
-                    sudo mkdir -p /var/www/kea-bi-dev
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
-                    
-                    # Configurar nginx ou servir arquivos estáticos
-                    sudo chown -R www-data:www-data /var/www/kea-bi-dev
+                    mkdir -p /var/www/kea-bi-dev
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
                     
                     # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me)
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     echo "✅ Frontend disponível em: http://$SERVER_IP/kea-bi-dev"
                     echo "✅ Build concluído com sucesso!"
                 '''
@@ -69,11 +64,10 @@ pipeline {
             }
             steps {
                 sh '''
-                    sudo mkdir -p /var/www/kea-bi-hml
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
-                    sudo chown -R www-data:www-data /var/www/kea-bi-hml
+                    mkdir -p /var/www/kea-bi-hml
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
                     
-                    SERVER_IP=$(curl -s ifconfig.me)
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     echo "✅ Homologação disponível em: http://$SERVER_IP/kea-bi-hml"
                 '''
             }
@@ -85,11 +79,10 @@ pipeline {
             }
             steps {
                 sh '''
-                    sudo mkdir -p /var/www/kea-bi-prod
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
-                    sudo chown -R www-data:www-data /var/www/kea-bi-prod
+                    mkdir -p /var/www/kea-bi-prod
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
                     
-                    SERVER_IP=$(curl -s ifconfig.me)
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     echo "✅ Produção disponível em: http://$SERVER_IP/kea-bi-prod"
                 '''
             }

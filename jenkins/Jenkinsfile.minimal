@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Check Node.js') {
+            steps {
+                sh '''
+                    if command -v node >/dev/null 2>&1; then
+                        echo "Node.js já instalado: $(node --version)"
+                        echo "NPM versão: $(npm --version)"
+                    else
+                        echo "Node.js não encontrado, instalando..."
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        echo "Node.js instalado: $(node --version)"
+                    fi
+                '''
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                dir('frontend/businessIntelligence') {
+                    sh '''
+                        echo "Instalando dependências..."
+                        npm install
+                        echo "Construindo aplicação..."
+                        npm run build
+                        echo "Build concluído!"
+                        ls -la build/
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                sh '''
+                    echo "Preparando deploy..."
+                    mkdir -p /tmp/kea-bi-deploy
+                    cp -r frontend/businessIntelligence/build/* /tmp/kea-bi-deploy/
+                    
+                    echo "Arquivos copiados para /tmp/kea-bi-deploy/"
+                    ls -la /tmp/kea-bi-deploy/
+                    
+                    echo "✅ Deploy concluído com sucesso!"
+                    echo "📁 Arquivos disponíveis em: /tmp/kea-bi-deploy/"
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '🎉 Pipeline executado com sucesso!'
+        }
+        failure {
+            echo '❌ Pipeline falhou!'
+        }
+    }
+}
