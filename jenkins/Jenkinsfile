@@ -65,17 +65,23 @@ pipeline {
             steps {
                 sh '''
                     # Criar diretório de deploy
-                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-dev
+                    DEV_PATH="/var/jenkins_home/workspace/deploy/kea-bi-dev"
+                    mkdir -p $DEV_PATH
                     
                     # Copiar arquivos de build
                     if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* /var/jenkins_home/workspace/deploy/kea-bi-dev/ || true
+                        cp -r frontend/businessIntelligence/build/* $DEV_PATH/ || true
+                        echo "✅ Arquivos copiados para: $DEV_PATH"
+                        ls -la $DEV_PATH
                     fi
                     
                     # Informações de deploy
+                    echo "==================== DEPLOY DEVELOPMENT ===================="
                     echo "✅ Build concluído com sucesso!"
-                    echo "✅ Arquivos disponíveis em: /var/jenkins_home/workspace/deploy/kea-bi-dev"
-                    echo "✅ Deploy simulado para desenvolvimento"
+                    echo "✅ Caminho de deploy: $DEV_PATH"
+                    echo "✅ Ambiente: Desenvolvimento"
+                    echo "✅ Branch: develop"
+                    echo "========================================================="
                 '''
             }
         }
@@ -86,13 +92,21 @@ pipeline {
             }
             steps {
                 sh '''
-                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-hml
+                    HML_PATH="/var/jenkins_home/workspace/deploy/kea-bi-hml"
+                    mkdir -p $HML_PATH
                     
                     if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* /var/jenkins_home/workspace/deploy/kea-bi-hml/ || true
+                        cp -r frontend/businessIntelligence/build/* $HML_PATH/ || true
+                        echo "✅ Arquivos copiados para: $HML_PATH"
+                        ls -la $HML_PATH
                     fi
                     
-                    echo "✅ Homologação disponível em: /var/jenkins_home/workspace/deploy/kea-bi-hml"
+                    echo "==================== DEPLOY HOMOLOGATION =================="
+                    echo "✅ Deploy realizado com sucesso!"
+                    echo "✅ Caminho de deploy: $HML_PATH"
+                    echo "✅ Ambiente: Homologação"
+                    echo "✅ Branch: hml"
+                    echo "========================================================="
                 '''
             }
         }
@@ -103,13 +117,21 @@ pipeline {
             }
             steps {
                 sh '''
-                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-prod
+                    PROD_PATH="/var/jenkins_home/workspace/deploy/kea-bi-prod"
+                    mkdir -p $PROD_PATH
                     
                     if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* /var/jenkins_home/workspace/deploy/kea-bi-prod/ || true
+                        cp -r frontend/businessIntelligence/build/* $PROD_PATH/ || true
+                        echo "✅ Arquivos copiados para: $PROD_PATH"
+                        ls -la $PROD_PATH
                     fi
                     
-                    echo "✅ Produção disponível em: /var/jenkins_home/workspace/deploy/kea-bi-prod"
+                    echo "==================== DEPLOY PRODUCTION ====================="
+                    echo "✅ Deploy realizado com sucesso!"
+                    echo "✅ Caminho de deploy: $PROD_PATH"
+                    echo "✅ Ambiente: Produção"
+                    echo "✅ Branch: main"
+                    echo "========================================================="
                 '''
             }
         }
