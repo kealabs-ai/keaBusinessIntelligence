@@ -16,15 +16,28 @@ pipeline {
         stage('Install Node.js') {
             steps {
                 sh '''
-                    # Instalar Node.js usando NodeSource
-                    apt-get update || true
-                    apt-get install -y curl || true
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - || true
-                    apt-get install -y nodejs || true
-                    
-                    # Verificar instalação
-                    node --version || echo "Node.js não instalado"
-                    npm --version || echo "npm não instalado"
+                    # Verificar se Node.js já está instalado
+                    if command -v node >/dev/null 2>&1; then
+                        echo "Node.js já instalado: $(node --version)"
+                        echo "NPM versão: $(npm --version)"
+                    else
+                        echo "Instalando Node.js via binário..."
+                        
+                        # Download e instalação direta do Node.js
+                        cd /tmp
+                        wget -q https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.xz
+                        tar -xf node-v18.19.0-linux-x64.tar.xz
+                        
+                        # Mover para /usr/local
+                        cp -r node-v18.19.0-linux-x64/* /usr/local/
+                        
+                        # Verificar instalação
+                        node --version
+                        npm --version
+                        
+                        # Limpar arquivos temporários
+                        rm -rf /tmp/node-v18.19.0-linux-x64*
+                    fi
                 '''
             }
         }
@@ -33,12 +46,27 @@ pipeline {
             steps {
                 dir('frontend/businessIntelligence') {
                     sh '''
-                        # Verificar se package.json existe
+                        echo "Verificando package.json..."
                         if [ -f package.json ]; then
-                            npm install || echo "Erro no npm install"
-                            npm run build || echo "Erro no build"
+                            echo "package.json encontrado"
+                            
+                            echo "Instalando dependências..."
+                            npm install --verbose
+                            
+                            echo "Construindo aplicação..."
+                            npm run build
+                            
+                            echo "Verificando build..."
+                            if [ -d build ]; then
+                                echo "Build criado com sucesso!"
+                                ls -la build/
+                            else
+                                echo "ERRO: Pasta build não foi criada!"
+                                exit 1
+                            fi
                         else
-                            echo "package.json não encontrado"
+                            echo "ERRO: package.json não encontrado!"
+                            echo "Criando build básico..."
                             mkdir -p build
                             echo "<h1>Kea Business Intelligence</h1>" > build/index.html
                         fi
