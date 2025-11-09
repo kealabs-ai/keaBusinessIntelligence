@@ -17,9 +17,9 @@ pipeline {
         stage('Install Node.js') {
             steps {
                 sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
-                    sudo apt-get update
-                    sudo apt-get install -y nodejs
+                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                    apt-get update
+                    apt-get install -y nodejs
                     node --version
                     npm --version
                 '''
@@ -47,8 +47,8 @@ pipeline {
             steps {
                 sh '''
                     # Copiar arquivos de build
-                    sudo mkdir -p /var/www/kea-bi-dev
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
+                    mkdir -p /var/www/kea-bi-dev
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
                     
                     # Obter IP do servidor
                     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
@@ -64,8 +64,8 @@ pipeline {
             }
             steps {
                 sh '''
-                    sudo mkdir -p /var/www/kea-bi-hml
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
+                    mkdir -p /var/www/kea-bi-hml
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
                     
                     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     echo "✅ Homologação disponível em: http://$SERVER_IP/kea-bi-hml"
@@ -79,8 +79,8 @@ pipeline {
             }
             steps {
                 sh '''
-                    sudo mkdir -p /var/www/kea-bi-prod
-                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
+                    mkdir -p /var/www/kea-bi-prod
+                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
                     
                     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     echo "✅ Produção disponível em: http://$SERVER_IP/kea-bi-prod"
