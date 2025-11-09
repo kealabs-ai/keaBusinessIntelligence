@@ -25,15 +25,19 @@ pipeline {
                         
                         # Download e instalação direta do Node.js
                         cd /tmp
-                        curl -L -o node-v18.19.0-linux-x64.tar.xz https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.xz
-                        tar -xf node-v18.19.0-linux-x64.tar.xz
+                        curl -L -o node-v18.19.0-linux-x64.tar.gz https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz
+                        tar -xzf node-v18.19.0-linux-x64.tar.gz
                         
                         # Mover para /usr/local
                         cp -r node-v18.19.0-linux-x64/* /usr/local/
                         
                         # Verificar instalação
-                        node --version
-                        npm --version
+                        /usr/local/bin/node --version
+                        /usr/local/bin/npm --version
+                        
+                        # Criar links simbólicos
+                        ln -sf /usr/local/bin/node /usr/bin/node
+                        ln -sf /usr/local/bin/npm /usr/bin/npm
                         
                         # Limpar arquivos temporários
                         rm -rf /tmp/node-v18.19.0-linux-x64*
