@@ -25,7 +25,7 @@ pipeline {
                         
                         # Download e instalação direta do Node.js
                         cd /tmp
-                        wget -q https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.xz
+                        curl -L -o node-v18.19.0-linux-x64.tar.xz https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.xz
                         tar -xf node-v18.19.0-linux-x64.tar.xz
                         
                         # Mover para /usr/local
