@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  openvpn:
+    image: dperson/openvpn-client
+    container_name: kea-bi-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - ./openvpn:/vpn:ro
+    environment:
+      - VPN_CONFIG=/vpn/client.ovpn
+    restart: unless-stopped
+    networks:
+      - kea-network
+
+  kea-bi-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: kea-bi-app
+    depends_on:
+      - openvpn
+    network_mode: "service:openvpn"
+    environment:
+      - DB_SERVER=${VPN_DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../frontend/build:/app/frontend/build
+    restart: unless-stopped
+
+networks:
+  kea-network:
+    driver: bridge
