@@ -2,8 +2,9 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_IMAGE = 'kea-business-intelligence'
-        DOCKER_TAG = "${BUILD_NUMBER}"
+        NODE_VERSION = '18'
+        APP_NAME = 'kea-business-intelligence'
+        BUILD_DIR = 'frontend/businessIntelligence/build'
     }
     
     stages {
@@ -13,77 +14,52 @@ pipeline {
             }
         }
         
-        stage('Install Docker') {
+        stage('Install Node.js') {
             steps {
-                sh 'chmod +x jenkins/install-docker.sh'
-                sh 'jenkins/install-docker.sh'
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+                    sudo apt-get install -y nodejs
+                    node --version
+                    npm --version
+                '''
             }
         }
         
         stage('Build Frontend') {
             steps {
-                script {
-                    docker.image('node:18-alpine').inside {
-                        dir('frontend/businessIntelligence') {
-                            sh 'npm install'
-                            sh 'npm run build'
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Build Docker') {
-            steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}", "-f docker/Dockerfile .")
+                dir('frontend/businessIntelligence') {
+                    sh 'npm install'
+                    sh 'npm run build'
                 }
             }
         }
         
         stage('Test Frontend') {
             steps {
-                script {
-                    docker.image('node:18-alpine').inside {
-                        dir('frontend/businessIntelligence') {
-                            sh 'npm test -- --coverage --watchAll=false || true'
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Test Backend') {
-            steps {
-                script {
-                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").inside {
-                        sh 'python -m pytest tests/ || true'
-                    }
+                dir('frontend/businessIntelligence') {
+                    sh 'npm test -- --coverage --watchAll=false || true'
                 }
             }
         }
         
         stage('Deploy to Development') {
             steps {
-                script {
-                    sh """
-                        docker stop kea-bi-dev || true
-                        docker rm kea-bi-dev || true
-                        docker run -d --name kea-bi-dev -p 5001:5000 \
-                            -e DB_SERVER=\${DEV_DB_SERVER} \
-                            -e DB_NAME=\${DEV_DB_NAME} \
-                            -e DB_USER=\${DEV_DB_USER} \
-                            -e DB_PASSWORD=\${DEV_DB_PASSWORD} \
-                            -e OPENAI_API_KEY=\${OPENAI_API_KEY} \
-                            -e GEMINI_API_KEY=\${GEMINI_API_KEY} \
-                            -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
-                            -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
-                            ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        SERVER_IP=\$(curl -s ifconfig.me)
-                        echo "✅ Aplicação disponível em: http://\$SERVER_IP:5001"
-                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5001/api/test"
-                    """
-                }
+                sh '''
+                    # Parar serviços existentes
+                    sudo systemctl stop kea-bi-dev || true
+                    
+                    # Copiar arquivos de build
+                    sudo mkdir -p /var/www/kea-bi-dev
+                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
+                    
+                    # Configurar nginx ou servir arquivos estáticos
+                    sudo chown -R www-data:www-data /var/www/kea-bi-dev
+                    
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me)
+                    echo "✅ Frontend disponível em: http://$SERVER_IP/kea-bi-dev"
+                    echo "✅ Build concluído com sucesso!"
+                '''
             }
         }
         
@@ -92,25 +68,14 @@ pipeline {
                 branch 'hml'
             }
             steps {
-                script {
-                    sh """
-                        docker stop kea-bi-hml || true
-                        docker rm kea-bi-hml || true
-                        docker run -d --name kea-bi-hml -p 5002:5000 \
-                            -e DB_SERVER=\${HML_DB_SERVER} \
-                            -e DB_NAME=\${HML_DB_NAME} \
-                            -e DB_USER=\${HML_DB_USER} \
-                            -e DB_PASSWORD=\${HML_DB_PASSWORD} \
-                            -e OPENAI_API_KEY=\${OPENAI_API_KEY} \
-                            -e GEMINI_API_KEY=\${GEMINI_API_KEY} \
-                            -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
-                            -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
-                            ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        SERVER_IP=\$(curl -s ifconfig.me)
-                        echo "✅ Aplicação disponível em: http://\$SERVER_IP:5002"
-                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5002/api/test"
-                    """
-                }
+                sh '''
+                    sudo mkdir -p /var/www/kea-bi-hml
+                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
+                    sudo chown -R www-data:www-data /var/www/kea-bi-hml
+                    
+                    SERVER_IP=$(curl -s ifconfig.me)
+                    echo "✅ Homologação disponível em: http://$SERVER_IP/kea-bi-hml"
+                '''
             }
         }
         
@@ -119,32 +84,28 @@ pipeline {
                 branch 'main'
             }
             steps {
-                script {
-                    sh """
-                        docker stop kea-bi-prod || true
-                        docker rm kea-bi-prod || true
-                        docker run -d --name kea-bi-prod -p 5000:5000 \
-                            -e DB_SERVER=\${PROD_DB_SERVER} \
-                            -e DB_NAME=\${PROD_DB_NAME} \
-                            -e DB_USER=\${PROD_DB_USER} \
-                            -e DB_PASSWORD=\${PROD_DB_PASSWORD} \
-                            -e OPENAI_API_KEY=\${OPENAI_API_KEY} \
-                            -e GEMINI_API_KEY=\${GEMINI_API_KEY} \
-                            -e OLLAMA_BASE_URL=\${OLLAMA_BASE_URL} \
-                            -e DEFAULT_LLM_PROVIDER=\${DEFAULT_LLM_PROVIDER} \
-                            ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        SERVER_IP=\$(curl -s ifconfig.me)
-                        echo "✅ Aplicação disponível em: http://\$SERVER_IP:5000"
-                        echo "✅ Endpoint de teste: http://\$SERVER_IP:5000/api/test"
-                    """
-                }
+                sh '''
+                    sudo mkdir -p /var/www/kea-bi-prod
+                    sudo cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
+                    sudo chown -R www-data:www-data /var/www/kea-bi-prod
+                    
+                    SERVER_IP=$(curl -s ifconfig.me)
+                    echo "✅ Produção disponível em: http://$SERVER_IP/kea-bi-prod"
+                '''
             }
         }
     }
     
+    
     post {
         always {
-            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
+            echo 'Pipeline concluído!'
+        }
+        success {
+            echo 'Deploy realizado com sucesso!'
+        }
+        failure {
+            echo 'Deploy falhou!'
         }
     }
 }
