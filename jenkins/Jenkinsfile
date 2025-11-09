@@ -13,6 +13,13 @@ pipeline {
             }
         }
         
+        stage('Install Docker') {
+            steps {
+                sh 'chmod +x jenkins/install-docker.sh'
+                sh 'jenkins/install-docker.sh'
+            }
+        }
+        
         stage('Build Frontend') {
             steps {
                 script {

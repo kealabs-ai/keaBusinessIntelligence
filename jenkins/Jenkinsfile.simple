@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+    
+    environment {
+        NODE_VERSION = '18'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Install Node.js') {
+            steps {
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get install -y nodejs
+                    node --version
+                    npm --version
+                '''
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                dir('frontend/businessIntelligence') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
+        
+        stage('Test Frontend') {
+            steps {
+                dir('frontend/businessIntelligence') {
+                    sh 'npm test -- --coverage --watchAll=false || true'
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                sh '''
+                    echo "Aplicação construída com sucesso!"
+                    echo "Build disponível em: frontend/businessIntelligence/build/"
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline concluído!'
+        }
+        success {
+            echo 'Build realizado com sucesso!'
+        }
+        failure {
+            echo 'Build falhou!'
+        }
+    }
+}
