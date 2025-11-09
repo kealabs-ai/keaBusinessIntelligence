@@ -115,9 +115,6 @@ pipeline {
         }
         
         stage('Deploy to Homologation') {
-            when {
-                branch 'hml'
-            }
             steps {
                 sh '''
                     HML_PATH="/var/jenkins_home/workspace/deploy/kea-bi-hml"
@@ -133,16 +130,13 @@ pipeline {
                     echo "✅ Deploy realizado com sucesso!"
                     echo "✅ Caminho de deploy: $HML_PATH"
                     echo "✅ Ambiente: Homologação"
-                    echo "✅ Branch: hml"
+                    echo "✅ Branch: ${BRANCH_NAME}"
                     echo "========================================================="
                 '''
             }
         }
         
         stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
             steps {
                 sh '''
                     PROD_PATH="/var/jenkins_home/workspace/deploy/kea-bi-prod"
@@ -158,7 +152,30 @@ pipeline {
                     echo "✅ Deploy realizado com sucesso!"
                     echo "✅ Caminho de deploy: $PROD_PATH"
                     echo "✅ Ambiente: Produção"
-                    echo "✅ Branch: main"
+                    echo "✅ Branch: ${BRANCH_NAME}"
+                    echo "========================================================="
+                '''
+            }
+        }
+        
+        stage('Deploy Backend') {
+            steps {
+                sh '''
+                    echo "==================== DEPLOY BACKEND ========================"
+                    
+                    # Criar diretório para backend
+                    BACKEND_PATH="/var/jenkins_home/workspace/deploy/kea-bi-backend"
+                    mkdir -p $BACKEND_PATH
+                    
+                    # Copiar arquivos do backend
+                    cp -r backend/* $BACKEND_PATH/ || true
+                    cp requirements.txt $BACKEND_PATH/ || true
+                    cp .env $BACKEND_PATH/ || true
+                    
+                    echo "✅ Backend copiado para: $BACKEND_PATH"
+                    echo "✅ Arquivos backend:"
+                    ls -la $BACKEND_PATH
+                    
                     echo "========================================================="
                 '''
             }
