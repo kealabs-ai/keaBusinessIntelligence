@@ -1,13 +1,8 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:20-alpine'
-            args '-v /var/www:/var/www'
-        }
-    }
+    agent any
     
     environment {
-        NODE_VERSION = '20'
+        NODE_VERSION = '18'
         APP_NAME = 'kea-business-intelligence'
         BUILD_DIR = 'frontend/businessIntelligence/build'
     }
@@ -19,44 +14,74 @@ pipeline {
             }
         }
         
-        stage('Verify Node.js') {
+        stage('Build Frontend') {
             steps {
-                sh '''
-                    node --version
-                    npm --version
-                '''
+                script {
+                    docker.image('node:18-alpine').inside() {
+                        dir('frontend/businessIntelligence') {
+                            sh 'npm install'
+                            sh 'npm run build'
+                        }
+                    }
+                }
             }
         }
         
-        stage('Build Frontend') {
+        stage('Build Docker') {
             steps {
-                dir('frontend/businessIntelligence') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                script {
+                    def buildNumber = env.BUILD_NUMBER
+                    sh "docker build -t kea-business-intelligence:${buildNumber} -f docker/Dockerfile ."
                 }
             }
         }
         
         stage('Test Frontend') {
             steps {
-                dir('frontend/businessIntelligence') {
-                    sh 'npm test -- --coverage --watchAll=false || true'
+                script {
+                    docker.image('node:18-alpine').inside() {
+                        dir('frontend/businessIntelligence') {
+                            sh 'npm test -- --coverage --watchAll=false || true'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Test Backend') {
+            steps {
+                script {
+                    def buildNumber = env.BUILD_NUMBER
+                    docker.image("kea-business-intelligence:${buildNumber}").inside() {
+                        sh 'python -m pytest tests/ || true'
+                    }
                 }
             }
         }
         
         stage('Deploy to Development') {
             steps {
-                sh '''
-                    # Copiar arquivos de build
-                    mkdir -p /var/www/kea-bi-dev
-                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-dev/
-                    
-                    # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    echo "✅ Frontend disponível em: http://$SERVER_IP/kea-bi-dev"
-                    echo "✅ Build concluído com sucesso!"
-                '''
+                script {
+                    def buildNumber = env.BUILD_NUMBER
+                    sh '''
+                        docker stop kea-bi-dev || true
+                        docker rm kea-bi-dev || true
+                        docker run -d --name kea-bi-dev -p 5001:5000 \
+                            -e DB_SERVER= \
+                            -e DB_NAME= \
+                            -e DB_USER= \
+                            -e DB_PASSWORD= \
+                            -e OPENAI_API_KEY= \
+                            -e GEMINI_API_KEY= \
+                            -e OLLAMA_BASE_URL= \
+                            -e DEFAULT_LLM_PROVIDER= \
+                            kea-business-intelligence:''' + buildNumber + '''
+                        
+                        SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                        echo "✅ Aplicação disponível em: http://$SERVER_IP:5001"
+                        echo "✅ Endpoint de teste: http://$SERVER_IP:5001/api/test"
+                    '''
+                }
             }
         }
         
@@ -65,13 +90,26 @@ pipeline {
                 branch 'hml'
             }
             steps {
-                sh '''
-                    mkdir -p /var/www/kea-bi-hml
-                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-hml/
-                    
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    echo "✅ Homologação disponível em: http://$SERVER_IP/kea-bi-hml"
-                '''
+                script {
+                    def buildNumber = env.BUILD_NUMBER
+                    sh '''
+                        docker stop kea-bi-hml || true
+                        docker rm kea-bi-hml || true
+                        docker run -d --name kea-bi-hml -p 5002:5000 \
+                            -e DB_SERVER= \
+                            -e DB_NAME= \
+                            -e DB_USER= \
+                            -e DB_PASSWORD= \
+                            -e OPENAI_API_KEY= \
+                            -e GEMINI_API_KEY= \
+                            -e OLLAMA_BASE_URL= \
+                            -e DEFAULT_LLM_PROVIDER= \
+                            kea-business-intelligence:''' + buildNumber + '''
+                        
+                        SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                        echo "✅ Homologação disponível em: http://$SERVER_IP:5002"
+                    '''
+                }
             }
         }
         
@@ -80,13 +118,26 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh '''
-                    mkdir -p /var/www/kea-bi-prod
-                    cp -r frontend/businessIntelligence/build/* /var/www/kea-bi-prod/
-                    
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    echo "✅ Produção disponível em: http://$SERVER_IP/kea-bi-prod"
-                '''
+                script {
+                    def buildNumber = env.BUILD_NUMBER
+                    sh '''
+                        docker stop kea-bi-prod || true
+                        docker rm kea-bi-prod || true
+                        docker run -d --name kea-bi-prod -p 5000:5000 \
+                            -e DB_SERVER= \
+                            -e DB_NAME= \
+                            -e DB_USER= \
+                            -e DB_PASSWORD= \
+                            -e OPENAI_API_KEY= \
+                            -e GEMINI_API_KEY= \
+                            -e OLLAMA_BASE_URL= \
+                            -e DEFAULT_LLM_PROVIDER= \
+                            kea-business-intelligence:''' + buildNumber + '''
+                        
+                        SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                        echo "✅ Produção disponível em: http://$SERVER_IP:5000"
+                    '''
+                }
             }
         }
     }
@@ -94,6 +145,10 @@ pipeline {
     
     post {
         always {
+            script {
+                def buildNumber = env.BUILD_NUMBER
+                sh "docker rmi kea-business-intelligence:${buildNumber} || true"
+            }
             echo 'Pipeline concluído!'
         }
         success {
