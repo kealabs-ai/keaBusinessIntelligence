@@ -6,10 +6,10 @@ load_dotenv()
 
 class SQLServerConnection:
     def __init__(self):
-        self.server = os.getenv('DB_SERVER')
-        self.database = os.getenv('DB_NAME')
-        self.username = os.getenv('DB_USER')
-        self.password = os.getenv('DB_PASSWORD')
+        self.server = os.getenv('SQLSERVER_HOST', '10.8.0.1')
+        self.database = os.getenv('SQLSERVER_DATABASE', 'business_intelligence')
+        self.username = os.getenv('SQLSERVER_USER', 'sa')
+        self.password = os.getenv('SQLSERVER_PASSWORD', '')
         self.connection = None
     
     def connect(self):
