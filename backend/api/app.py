@@ -1,9 +1,5 @@
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
-from backend.data.connection import SQLServerConnection
-from backend.data.mysql_connection import MySQLConnection
-from backend.queries.sql_queries import SQLQueries
-from backend.llm.analytics import AnalyticsLLM
 from backend.auth.token_manager import TokenManager, token_required
 from backend.api.auth_endpoints import auth_bp
 import os
@@ -13,7 +9,6 @@ app = Flask(__name__,
                     template_folder='../../frontend/build',
                     static_folder='../../frontend/build/static')
 CORS(app)
-analytics_llm = AnalyticsLLM()
 
 # Registrar blueprint de autenticação
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -34,6 +29,17 @@ def static_files(filename):
 def test():
     return jsonify({'status': 'success', 'message': 'API funcionando corretamente', 'version': '1.0'})
 
+@app.route('/api/debug/routes')
+def debug_routes():
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'rule': str(rule)
+        })
+    return jsonify({'routes': routes})
+
 
 
 @app.route('/estilos/<path:filename>')
@@ -47,101 +53,32 @@ def javascript(filename):
 @app.route('/api/sales-data')
 @token_required
 def get_sales_data():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_SALES_DATA, (start_date, end_date))
-        data = [{'month': row[0], 'total_sales': row[1], 'transaction_count': row[2]} for row in results]
-        return jsonify(data)
-    finally:
-        db.close()
+    # Mock data para teste
+    return jsonify([
+        {'month': '2024-01', 'total_sales': 15000, 'transaction_count': 120},
+        {'month': '2024-02', 'total_sales': 18000, 'transaction_count': 145},
+        {'month': '2024-03', 'total_sales': 22000, 'transaction_count': 180}
+    ])
 
 @app.route('/api/top-products')
 @token_required
 def get_top_products():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_TOP_PRODUCTS, (start_date, end_date))
-        data = [{'product': row[0], 'quantity': row[1], 'revenue': row[2]} for row in results]
-        return jsonify(data)
-    finally:
-        db.close()
+    # Mock data para teste
+    return jsonify([
+        {'product': 'Produto A', 'quantity': 50, 'revenue': 5000},
+        {'product': 'Produto B', 'quantity': 35, 'revenue': 3500},
+        {'product': 'Produto C', 'quantity': 28, 'revenue': 2800}
+    ])
 
 @app.route('/api/customer-metrics')
 @token_required
 def get_customer_metrics():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_CUSTOMER_METRICS, (start_date, end_date))
-        data = {'total_customers': results[0][0], 'avg_order_value': results[0][1], 'total_revenue': results[0][2]}
-        return jsonify(data)
-    finally:
-        db.close()
-
-@app.route('/api/analyze-sales')
-@token_required
-def analyze_sales():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_SALES_DATA, (start_date, end_date))
-        data = [{'month': row[0], 'total_sales': row[1], 'transaction_count': row[2]} for row in results]
-        analysis = analytics_llm.analyze_sales_trend(data)
-        return jsonify({'data': data, 'analysis': analysis})
-    finally:
-        db.close()
-
-@app.route('/api/analyze-products')
-@token_required
-def analyze_products():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_TOP_PRODUCTS, (start_date, end_date))
-        data = [{'product': row[0], 'quantity': row[1], 'revenue': row[2]} for row in results]
-        insights = analytics_llm.generate_product_insights(data)
-        return jsonify({'data': data, 'insights': insights})
-    finally:
-        db.close()
-
-@app.route('/api/analyze-metrics')
-@token_required
-def analyze_metrics():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    db = SQLServerConnection()
-    db.connect()
-    
-    try:
-        results = db.execute_query(SQLQueries.GET_CUSTOMER_METRICS, (start_date, end_date))
-        metrics = {'total_customers': results[0][0], 'avg_order_value': results[0][1], 'total_revenue': results[0][2]}
-        interpretation = analytics_llm.interpret_metrics(metrics)
-        return jsonify({'metrics': metrics, 'interpretation': interpretation})
-    finally:
-        db.close()
+    # Mock data para teste
+    return jsonify({
+        'total_customers': 1250,
+        'avg_order_value': 125.50,
+        'total_revenue': 55000
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
