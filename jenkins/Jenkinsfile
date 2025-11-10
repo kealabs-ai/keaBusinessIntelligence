@@ -116,11 +116,11 @@ pipeline {
                     echo "✅ Ambiente: Desenvolvimento"
                     echo "✅ Branch: develop"
                     echo ""
-                    echo "🌐 URLs DE ACESSO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5000/"
-                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
+                    echo "🌐 URLs DE ACESSO DESENVOLVIMENTO:"
+                    echo "📱 Frontend: http://$SERVER_IP:5001/"
+                    echo "🔌 API: http://$SERVER_IP:5001/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5001/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5001/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -148,10 +148,10 @@ pipeline {
                     echo "✅ Branch: ${BRANCH_NAME}"
                     echo ""
                     echo "🌐 URLs DE ACESSO HOMOLOGAÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5000/"
-                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
+                    echo "📱 Frontend: http://$SERVER_IP:5002/"
+                    echo "🔌 API: http://$SERVER_IP:5002/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5002/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5002/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -179,10 +179,10 @@ pipeline {
                     echo "✅ Branch: ${BRANCH_NAME}"
                     echo ""
                     echo "🌐 URLs DE ACESSO PRODUÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5000/"
-                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
+                    echo "📱 Frontend: http://$SERVER_IP:5003/"
+                    echo "🔌 API: http://$SERVER_IP:5003/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5003/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5003/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -231,28 +231,55 @@ pipeline {
                     
                     # Parar serviços existentes
                     pkill -f "python.*app.py" || true
-                    pkill -f "npm.*start" || true
                     
-                    # Iniciar aplicação Flask (Frontend + API na porta 5000)
+                    # Criar scripts de inicialização para cada ambiente
+                    
+                    # Desenvolvimento - Porta 5001
                     cd /var/jenkins_home/workspace/deploy/kea-bi-backend
-                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
-                    echo "✅ Aplicação Flask iniciada (Frontend + API na porta 5000)"
+                    cp -r ../kea-bi-dev/* .
+                    sed -i 's/port=5000/port=5001/' api/app.py
+                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/dev.log 2>&1 &
+                    echo "✅ Desenvolvimento iniciado na porta 5001"
+                    
+                    # Homologação - Porta 5002
+                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-hml-backend
+                    cd /var/jenkins_home/workspace/deploy/kea-bi-hml-backend
+                    cp -r ../kea-bi-backend/* .
+                    cp -r ../kea-bi-hml/* .
+                    sed -i 's/port=5001/port=5002/' api/app.py
+                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/hml.log 2>&1 &
+                    echo "✅ Homologação iniciada na porta 5002"
+                    
+                    # Produção - Porta 5003
+                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-prod-backend
+                    cd /var/jenkins_home/workspace/deploy/kea-bi-prod-backend
+                    cp -r ../kea-bi-backend/* .
+                    cp -r ../kea-bi-prod/* .
+                    sed -i 's/port=5002/port=5003/' api/app.py
+                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/prod.log 2>&1 &
+                    echo "✅ Produção iniciada na porta 5003"
                     
                     # Aguardar serviços iniciarem
-                    sleep 5
+                    sleep 10
                     
                     echo ""
-                    echo "🎉 KEA BUSINESS INTELLIGENCE DISPONÍVEL:"
-                    echo "📱 Frontend: http://$SERVER_IP:5000/"
-                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
-                    echo "📈 Vendas: http://$SERVER_IP:5000/api/sales-data"
-                    echo "📦 Produtos: http://$SERVER_IP:5000/api/top-products"
-                    echo "👥 Clientes: http://$SERVER_IP:5000/api/customer-metrics"
+                    echo "🎉 KEA BUSINESS INTELLIGENCE - TODOS OS AMBIENTES:"
+                    echo "🔧 DESENVOLVIMENTO (5001):"
+                    echo "   📱 Frontend: http://$SERVER_IP:5001/"
+                    echo "   🔌 API: http://$SERVER_IP:5001/api/test"
+                    echo ""
+                    echo "🧪 HOMOLOGAÇÃO (5002):"
+                    echo "   📱 Frontend: http://$SERVER_IP:5002/"
+                    echo "   🔌 API: http://$SERVER_IP:5002/api/test"
+                    echo ""
+                    echo "🚀 PRODUÇÃO (5003):"
+                    echo "   📱 Frontend: http://$SERVER_IP:5003/"
+                    echo "   🔌 API: http://$SERVER_IP:5003/api/test"
                     echo ""
                     echo "📄 Logs:"
-                    echo "   Aplicação: /var/jenkins_home/workspace/deploy/app.log"
+                    echo "   Dev: /var/jenkins_home/workspace/deploy/dev.log"
+                    echo "   HML: /var/jenkins_home/workspace/deploy/hml.log"
+                    echo "   Prod: /var/jenkins_home/workspace/deploy/prod.log"
                     echo "========================================================="
                 '''
             }
