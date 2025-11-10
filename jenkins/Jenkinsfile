@@ -26,41 +26,37 @@ pipeline {
             }
         }
         
-        stage('Install Docker') {
+        stage('Setup') {
             steps {
                 sh '''
-                    # Verificar se Docker está disponível
-                    if ! command -v docker &> /dev/null; then
-                        echo "❌ Docker não encontrado. Configure Docker no Jenkins primeiro."
-                        echo "Alternativa: Use Jenkinsfile.no-docker para deploy sem Docker"
-                        exit 1
-                    fi
+                    # Instalar Python deps
+                    pip3 install -r requirements.txt || python3 -m pip install -r requirements.txt || true
                     
-                    echo "✅ Docker disponível: $(docker --version)"
+                    # Parar processos existentes
+                    pkill -f "python.*start_" || true
+                    sleep 5
                     
-                    # Testar acesso ao Docker
-                    if ! docker ps &> /dev/null; then
-                        echo "❌ Sem permissão para usar Docker. Configure o usuário jenkins no grupo docker."
-                        exit 1
-                    fi
-                    
-                    echo "✅ Docker funcional"
+                    echo "✅ Setup concluído"
                 '''
             }
         }
         
-        stage('Cleanup') {
+        stage('Build Frontend') {
             steps {
                 sh '''
-                    # Parar containers existentes
-                    docker stop kea-bi-production kea-bi-homologation kea-bi-development || true
-                    docker rm kea-bi-production kea-bi-homologation kea-bi-development || true
+                    # Build frontend
+                    cd frontend/businessIntelligence
                     
-                    # Limpar imagens antigas se forçado
-                    if [ "$FORCE_REBUILD" = "true" ]; then
-                        docker system prune -f
-                        docker rmi $(docker images kea* -q) || true
+                    # Instalar Node.js se necessário
+                    if ! command -v node &> /dev/null; then
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash - || true
+                        apt-get install -y nodejs || yum install -y nodejs || true
                     fi
+                    
+                    npm install || true
+                    npm run build || true
+                    
+                    echo "✅ Frontend build concluído"
                 '''
             }
         }
@@ -76,18 +72,19 @@ pipeline {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
                     
-                    # Build imagem se não existir
-                    docker build -t kea-bi:latest -f docker/Dockerfile . || exit 1
+                    # Copiar para deploy
+                    DEPLOY_DIR="/tmp/kea-bi-dev"
+                    rm -rf $DEPLOY_DIR
+                    mkdir -p $DEPLOY_DIR
+                    cp -r . $DEPLOY_DIR/
                     
-                    # Deploy desenvolvimento
-                    docker run -d --name kea-bi-development -p 6002:6002 \
-                        --env-file .env.dev \
-                        -e SERVER_PORT=6002 \
-                        -e ENVIRONMENT=development \
-                        kea-bi:latest
+                    cd $DEPLOY_DIR
+                    
+                    # Iniciar serviço
+                    nohup python3 start_dev.py > /tmp/kea-dev.log 2>&1 &
                     
                     # Aguardar inicialização
-                    sleep 30
+                    sleep 20
                     
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -115,15 +112,19 @@ pipeline {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
                     
-                    # Deploy homologação
-                    docker run -d --name kea-bi-homologation -p 6001:6001 \
-                        --env-file .env.hml \
-                        -e SERVER_PORT=6001 \
-                        -e ENVIRONMENT=homologation \
-                        kea-bi:latest
+                    # Copiar para deploy
+                    DEPLOY_DIR="/tmp/kea-bi-hml"
+                    rm -rf $DEPLOY_DIR
+                    mkdir -p $DEPLOY_DIR
+                    cp -r . $DEPLOY_DIR/
+                    
+                    cd $DEPLOY_DIR
+                    
+                    # Iniciar serviço
+                    nohup python3 start_hml.py > /tmp/kea-hml.log 2>&1 &
                     
                     # Aguardar inicialização
-                    sleep 30
+                    sleep 20
                     
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -151,15 +152,19 @@ pipeline {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
                     
-                    # Deploy produção
-                    docker run -d --name kea-bi-production -p 6000:6000 \
-                        --env-file .env.prod \
-                        -e SERVER_PORT=6000 \
-                        -e ENVIRONMENT=production \
-                        kea-bi:latest
+                    # Copiar para deploy
+                    DEPLOY_DIR="/tmp/kea-bi-prod"
+                    rm -rf $DEPLOY_DIR
+                    mkdir -p $DEPLOY_DIR
+                    cp -r . $DEPLOY_DIR/
+                    
+                    cd $DEPLOY_DIR
+                    
+                    # Iniciar serviço
+                    nohup python3 start_prod.py > /tmp/kea-prod.log 2>&1 &
                     
                     # Aguardar inicialização
-                    sleep 30
+                    sleep 20
                     
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -187,23 +192,24 @@ pipeline {
                     echo "🎯 Ambiente: $ENVIRONMENT"
                     echo ""
                     
-                    # Verificar status dos containers
-                    echo "📊 STATUS DOS CONTAINERS:"
-                    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep kea-bi || echo "Nenhum container rodando"
+                    # Verificar status dos serviços
+                    echo "📊 STATUS DOS SERVIÇOS:"
+                    ps aux | grep "python.*start_" | grep -v grep || echo "Nenhum serviço rodando"
                     echo ""
                     
                     # URLs de acesso
                     echo "🌐 URLs DE ACESSO:"
                     
-                    if docker ps | grep -q kea-bi-production; then
+                    # Verificar portas ativas
+                    if netstat -tuln | grep -q :6000; then
                         echo "🔴 PRODUÇÃO: http://$SERVER_IP:6000/"
                     fi
                     
-                    if docker ps | grep -q kea-bi-homologation; then
+                    if netstat -tuln | grep -q :6001; then
                         echo "🟡 HOMOLOGAÇÃO: http://$SERVER_IP:6001/"
                     fi
                     
-                    if docker ps | grep -q kea-bi-development; then
+                    if netstat -tuln | grep -q :6002; then
                         echo "🟢 DESENVOLVIMENTO: http://$SERVER_IP:6002/"
                     fi
                     
