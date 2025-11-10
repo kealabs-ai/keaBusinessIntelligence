@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  kea-bi-prod:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "6000:6000"
+    environment:
+      - ENVIRONMENT=production
+      - SERVER_PORT=6000
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER}
+    volumes:
+      - ../frontend:/app/frontend
+    restart: unless-stopped
+    container_name: kea-bi-production
+
+  kea-bi-hml:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "6001:6001"
+    environment:
+      - ENVIRONMENT=homologation
+      - SERVER_PORT=6001
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER}
+    volumes:
+      - ../frontend:/app/frontend
+    restart: unless-stopped
+    container_name: kea-bi-homologation
+
+  kea-bi-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "6002:6002"
+    environment:
+      - ENVIRONMENT=development
+      - SERVER_PORT=6002
+      - DEBUG=True
+      - DB_SERVER=${DB_SERVER}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER}
+    volumes:
+      - ../frontend:/app/frontend
+    restart: unless-stopped
+    container_name: kea-bi-development

@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+    
+    environment {
+        APP_NAME = 'kea-business-intelligence'
+        ENVIRONMENT = 'development'
+        PORT = '6002'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                dir('frontend/businessIntelligence') {
+                    sh '''
+                        npm install
+                        npm run build
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy Development') {
+            steps {
+                sh '''
+                    DEV_PATH="/var/jenkins_home/workspace/deploy/kea-bi-dev"
+                    mkdir -p $DEV_PATH
+                    
+                    # Copiar todos os arquivos
+                    cp -r . $DEV_PATH/
+                    
+                    # Parar serviço existente
+                    pkill -f "python.*start_dev.py" || true
+                    sleep 5
+                    
+                    # Instalar dependências
+                    cd $DEV_PATH
+                    python3 -m pip install -r requirements.txt
+                    
+                    # Iniciar serviço de desenvolvimento
+                    export PYTHONPATH=$DEV_PATH:$PYTHONPATH
+                    nohup python3 start_dev.py > /var/jenkins_home/workspace/deploy/dev.log 2>&1 &
+                    
+                    sleep 10
+                    
+                    # Verificar se está rodando
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
+                    if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
+                        echo "✅ Desenvolvimento iniciado com sucesso!"
+                        echo "🌐 Frontend: http://$SERVER_IP:6002/"
+                        echo "🔌 API: http://$SERVER_IP:6002/api/test"
+                        echo "🔐 Login: http://$SERVER_IP:6002/api/auth/login"
+                    else
+                        echo "❌ Erro ao iniciar desenvolvimento"
+                        tail -20 /var/jenkins_home/workspace/deploy/dev.log
+                        exit 1
+                    fi
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '🎉 Deploy de desenvolvimento realizado com sucesso!'
+        }
+        failure {
+            echo '❌ Deploy de desenvolvimento falhou!'
+        }
+    }
+}

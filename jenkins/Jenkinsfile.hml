@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+    
+    environment {
+        APP_NAME = 'kea-business-intelligence'
+        ENVIRONMENT = 'homologation'
+        PORT = '6001'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                dir('frontend/businessIntelligence') {
+                    sh '''
+                        npm install
+                        npm run build
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy Homologation') {
+            steps {
+                sh '''
+                    HML_PATH="/var/jenkins_home/workspace/deploy/kea-bi-hml"
+                    mkdir -p $HML_PATH
+                    
+                    # Copiar todos os arquivos
+                    cp -r . $HML_PATH/
+                    
+                    # Parar serviço existente
+                    pkill -f "python.*start_hml.py" || true
+                    sleep 5
+                    
+                    # Instalar dependências
+                    cd $HML_PATH
+                    python3 -m pip install -r requirements.txt
+                    
+                    # Iniciar serviço de homologação
+                    export PYTHONPATH=$HML_PATH:$PYTHONPATH
+                    nohup python3 start_hml.py > /var/jenkins_home/workspace/deploy/hml.log 2>&1 &
+                    
+                    sleep 10
+                    
+                    # Verificar se está rodando
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
+                    if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
+                        echo "✅ Homologação iniciada com sucesso!"
+                        echo "🌐 Frontend: http://$SERVER_IP:6001/"
+                        echo "🔌 API: http://$SERVER_IP:6001/api/test"
+                        echo "🔐 Login: http://$SERVER_IP:6001/api/auth/login"
+                    else
+                        echo "❌ Erro ao iniciar homologação"
+                        tail -20 /var/jenkins_home/workspace/deploy/hml.log
+                        exit 1
+                    fi
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '🎉 Deploy de homologação realizado com sucesso!'
+        }
+        failure {
+            echo '❌ Deploy de homologação falhou!'
+        }
+    }
+}

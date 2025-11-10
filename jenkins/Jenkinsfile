@@ -117,10 +117,10 @@ pipeline {
                     echo "✅ Branch: develop"
                     echo ""
                     echo "🌐 URLs DE ACESSO DESENVOLVIMENTO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5001/"
-                    echo "🔌 API: http://$SERVER_IP:5001/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5001/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5001/dashboard"
+                    echo "📱 Frontend: http://$SERVER_IP:6002/"
+                    echo "🔌 API: http://$SERVER_IP:6002/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:6002/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:6002/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -148,10 +148,10 @@ pipeline {
                     echo "✅ Branch: ${BRANCH_NAME}"
                     echo ""
                     echo "🌐 URLs DE ACESSO HOMOLOGAÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5002/"
-                    echo "🔌 API: http://$SERVER_IP:5002/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5002/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5002/dashboard"
+                    echo "📱 Frontend: http://$SERVER_IP:6001/"
+                    echo "🔌 API: http://$SERVER_IP:6001/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:6001/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:6001/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -179,10 +179,10 @@ pipeline {
                     echo "✅ Branch: ${BRANCH_NAME}"
                     echo ""
                     echo "🌐 URLs DE ACESSO PRODUÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:5003/"
-                    echo "🔌 API: http://$SERVER_IP:5003/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:5003/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:5003/dashboard"
+                    echo "📱 Frontend: http://$SERVER_IP:6000/"
+                    echo "🔌 API: http://$SERVER_IP:6000/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:6000/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:6000/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -199,55 +199,78 @@ pipeline {
                     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     
                     # Parar serviços existentes
+                    pkill -f "python.*start_" || true
                     pkill -f "python.*app.py" || true
-                    pkill -f "python.*deploy_vps.py" || true
                     sleep 5
                     
                     # Copiar arquivos para deploy
                     DEPLOY_PATH="/var/jenkins_home/workspace/deploy/kea-bi"
                     mkdir -p $DEPLOY_PATH
-                    cp -r backend $DEPLOY_PATH/ || true
-                    cp -r frontend $DEPLOY_PATH/ || true
-                    cp deploy_vps.py $DEPLOY_PATH/ || true
-                    cp simple_server.py $DEPLOY_PATH/ || true
-                    cp requirements_simple.txt $DEPLOY_PATH/ || true
+                    cp -r . $DEPLOY_PATH/ || true
                     
-                    # Tentar instalar dependências Flask
+                    # Instalar dependências
                     cd $DEPLOY_PATH
-                    python3 -m pip install flask flask-cors PyJWT mysql-connector-python python-dotenv 2>/dev/null || echo "Flask não disponível, usando servidor simples"
+                    python3 -m pip install -r requirements.txt 2>/dev/null || echo "Dependências já instaladas"
                     
-                    # Verificar se Flask está disponível
-                    if python3 -c "import flask" 2>/dev/null; then
-                        echo "Usando Flask (deploy_vps.py)"
-                        export PYTHONPATH=$DEPLOY_PATH:$PYTHONPATH
-                        nohup python3 deploy_vps.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    # Iniciar serviços por ambiente
+                    export PYTHONPATH=$DEPLOY_PATH:$PYTHONPATH
+                    
+                    # Desenvolvimento (porta 6002)
+                    nohup python3 start_dev.py > /var/jenkins_home/workspace/deploy/dev.log 2>&1 &
+                    echo "Serviço de desenvolvimento iniciado na porta 6002"
+                    
+                    # Homologação (porta 6001)
+                    nohup python3 start_hml.py > /var/jenkins_home/workspace/deploy/hml.log 2>&1 &
+                    echo "Serviço de homologação iniciado na porta 6001"
+                    
+                    # Produção (porta 6000)
+                    nohup python3 start_prod.py > /var/jenkins_home/workspace/deploy/prod.log 2>&1 &
+                    echo "Serviço de produção iniciado na porta 6000"
+                    
+                    # Aguardar serviços iniciarem
+                    sleep 15
+                    
+                    # Verificar se estão rodando
+                    echo "Verificando serviços..."
+                    
+                    if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
+                        echo "✅ Desenvolvimento (6002) - OK"
                     else
-                        echo "Usando servidor HTTP simples (simple_server.py)"
-                        nohup python3 simple_server.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                        echo "❌ Desenvolvimento (6002) - ERRO"
                     fi
                     
-                    # Aguardar serviço iniciar
-                    sleep 10
-                    
-                    # Verificar se está rodando
-                    if curl -f http://localhost:5000/api/test > /dev/null 2>&1; then
-                        echo "✅ Serviço iniciado com sucesso!"
+                    if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
+                        echo "✅ Homologação (6001) - OK"
                     else
-                        echo "❌ Erro ao iniciar serviço"
-                        echo "Log do erro:"
-                        tail -20 /var/jenkins_home/workspace/deploy/app.log
+                        echo "❌ Homologação (6001) - ERRO"
+                    fi
+                    
+                    if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
+                        echo "✅ Produção (6000) - OK"
+                    else
+                        echo "❌ Produção (6000) - ERRO"
                     fi
                     
                     echo ""
                     echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY COMPLETO:"
-                    echo "🌐 URLs DE ACESSO:"
-                    echo "   📱 Frontend: http://$SERVER_IP:5000/"
-                    echo "   🔌 API Test: http://$SERVER_IP:5000/api/test"
-                    echo "   🔐 Login: http://$SERVER_IP:5000/api/auth/login"
-                    echo "   📊 Sales: http://$SERVER_IP:5000/api/sales-data"
-                    echo "   📋 Routes: http://$SERVER_IP:5000/api/debug/routes"
+                    echo "🌐 URLs DE ACESSO POR AMBIENTE:"
                     echo ""
-                    echo "📄 Logs: /var/jenkins_home/workspace/deploy/app.log"
+                    echo "🔴 PRODUÇÃO (Porta 6000):"
+                    echo "   📱 Frontend: http://$SERVER_IP:6000/"
+                    echo "   🔌 API: http://$SERVER_IP:6000/api/test"
+                    echo "   🔐 Login: http://$SERVER_IP:6000/api/auth/login"
+                    echo ""
+                    echo "🟡 HOMOLOGAÇÃO (Porta 6001):"
+                    echo "   📱 Frontend: http://$SERVER_IP:6001/"
+                    echo "   🔌 API: http://$SERVER_IP:6001/api/test"
+                    echo "   🔐 Login: http://$SERVER_IP:6001/api/auth/login"
+                    echo ""
+                    echo "🟢 DESENVOLVIMENTO (Porta 6002):"
+                    echo "   📱 Frontend: http://$SERVER_IP:6002/"
+                    echo "   🔌 API: http://$SERVER_IP:6002/api/test"
+                    echo "   🔐 Login: http://$SERVER_IP:6002/api/auth/login"
+                    echo ""
+                    echo "📄 Logs: /var/jenkins_home/workspace/deploy/"
                     echo "📁 Deploy: $DEPLOY_PATH"
                     echo "========================================================="
                 '''
