@@ -106,7 +106,7 @@ function Dashboard() {
         }}
       >
         <Typography variant="h4" gutterBottom>
-          Hi, Welcome back 👋
+          Bem vindo 👋
         </Typography>
 
         <Grid container spacing={{ xs: 2, md: 3 }}>
