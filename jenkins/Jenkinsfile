@@ -26,22 +26,25 @@ pipeline {
             }
         }
         
-        stage('Deploy to Container') {
+        stage('Build and Deploy Container') {
             steps {
                 sh '''
-                    # Deploy para container existente
-                    CONTAINER_ID="f79a4a4b7c0b"
+                    # Parar e remover container existente se houver
+                    docker stop kea-bi-app || true
+                    docker rm kea-bi-app || true
                     
-                    # Parar processos no container
-                    docker exec $CONTAINER_ID pkill -f "python.*start_" || true
+                    # Build nova imagem
+                    docker build -t kea-bi:latest -f docker/Dockerfile .
                     
-                    # Copiar código para container
-                    docker cp . $CONTAINER_ID:/app/
+                    # Criar e iniciar novo container
+                    docker run -d --name kea-bi-app \
+                        -p 6000:6000 -p 6001:6001 -p 6002:6002 \
+                        --env-file .env.prod \
+                        -e ENVIRONMENT=production \
+                        -e SERVER_PORT=6000 \
+                        kea-bi:latest
                     
-                    # Instalar dependências no container
-                    docker exec $CONTAINER_ID python -m pip install -r /app/requirements_simple.txt || true
-                    
-                    echo "✅ Deploy para container concluído"
+                    echo "✅ Novo container criado e iniciado"
                 '''
             }
         }
@@ -58,10 +61,9 @@ pipeline {
             steps {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
-                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Iniciar serviço no container
-                    docker exec -d $CONTAINER_ID python /app/start_dev.py
+                    # Executar ambiente de desenvolvimento no container
+                    docker exec -d kea-bi-app python /app/start_dev.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -91,10 +93,9 @@ pipeline {
             steps {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
-                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Iniciar serviço no container
-                    docker exec -d $CONTAINER_ID python /app/start_hml.py
+                    # Executar ambiente de homologação no container
+                    docker exec -d kea-bi-app python /app/start_hml.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -124,10 +125,9 @@ pipeline {
             steps {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
-                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Iniciar serviço no container
-                    docker exec -d $CONTAINER_ID python /app/start_prod.py
+                    # Executar ambiente de produção no container (já iniciado por padrão)
+                    # O container já está rodando produção por padrão
                     
                     # Aguardar inicialização
                     sleep 20
