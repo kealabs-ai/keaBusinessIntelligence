@@ -89,7 +89,7 @@ pipeline {
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
-                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}' || echo "localhost")
                             echo "✅ DESENVOLVIMENTO OK - http://$SERVER_IP:6002/"
                             break
                         else
@@ -129,7 +129,7 @@ pipeline {
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
-                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}' || echo "localhost")
                             echo "✅ HOMOLOGAÇÃO OK - http://$SERVER_IP:6001/"
                             break
                         else
@@ -169,7 +169,7 @@ pipeline {
                     # Health check
                     for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
-                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}' || echo "localhost")
                             echo "✅ PRODUÇÃO OK - http://$SERVER_IP:6000/"
                             break
                         else
@@ -184,7 +184,7 @@ pipeline {
             steps {
                 sh '''
                     echo "==================== DEPLOY SUMMARY ===================="
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    SERVER_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}' || echo "localhost")
                     
                     echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY CONCLUÍDO"
                     echo "📅 Data: $(date)"
@@ -200,18 +200,26 @@ pipeline {
                     # URLs de acesso
                     echo "🌐 URLs DE ACESSO:"
                     
-                    # Verificar portas ativas
-                    if netstat -tuln | grep -q :6000; then
+                    # Verificar portas ativas e mostrar URLs
+                    if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
                         echo "🔴 PRODUÇÃO: http://$SERVER_IP:6000/"
+                        echo "   API: http://$SERVER_IP:6000/api/test"
+                        echo "   Login: http://$SERVER_IP:6000/api/auth/login"
                     fi
                     
-                    if netstat -tuln | grep -q :6001; then
+                    if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
                         echo "🟡 HOMOLOGAÇÃO: http://$SERVER_IP:6001/"
+                        echo "   API: http://$SERVER_IP:6001/api/test"
+                        echo "   Login: http://$SERVER_IP:6001/api/auth/login"
                     fi
                     
-                    if netstat -tuln | grep -q :6002; then
+                    if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
                         echo "🟢 DESENVOLVIMENTO: http://$SERVER_IP:6002/"
+                        echo "   API: http://$SERVER_IP:6002/api/test"
+                        echo "   Login: http://$SERVER_IP:6002/api/auth/login"
                     fi
+                    
+                    echo "📄 Logs disponíveis em: /tmp/kea-*.log"
                     
                     echo "========================================================="
                 '''
