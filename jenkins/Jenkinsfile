@@ -29,22 +29,16 @@ pipeline {
         stage('Setup') {
             steps {
                 sh '''
-                    # Verificar Python disponível
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                        PIP_CMD="pip3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                        PIP_CMD="pip"
+                    # Instalar Python deps usando pip3
+                    if [ -f "requirements_simple.txt" ]; then
+                        pip3 install -r requirements_simple.txt || python3 -m pip install -r requirements_simple.txt || true
+                    elif [ -f "requirements.txt" ]; then
+                        pip3 install -r requirements.txt || python3 -m pip install -r requirements.txt || true
                     else
-                        echo "❌ Python não encontrado"
-                        exit 1
+                        echo "⚠️ Nenhum arquivo requirements encontrado"
                     fi
                     
-                    echo "✅ Usando: $PYTHON_CMD"
-                    
-                    # Instalar Python deps
-                    $PIP_CMD install -r requirements.txt || $PYTHON_CMD -m pip install -r requirements.txt || true
+                    echo "✅ Usando: python3 e pip3"
                     
                     # Parar processos existentes
                     pkill -f "python.*start_" || true
@@ -94,18 +88,8 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
                     # Iniciar serviço
-                    nohup $PYTHON_CMD start_dev.py > /tmp/kea-dev.log 2>&1 &
+                    nohup python3 start_dev.py > /tmp/kea-dev.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -152,18 +136,8 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
                     # Iniciar serviço
-                    nohup $PYTHON_CMD start_hml.py > /tmp/kea-hml.log 2>&1 &
+                    nohup python3 start_hml.py > /tmp/kea-hml.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -202,18 +176,8 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
                     # Iniciar serviço
-                    nohup $PYTHON_CMD start_prod.py > /tmp/kea-prod.log 2>&1 &
+                    nohup python3 start_prod.py > /tmp/kea-prod.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
