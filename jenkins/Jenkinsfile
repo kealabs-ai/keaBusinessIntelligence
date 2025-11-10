@@ -106,12 +106,21 @@ pipeline {
                         ls -la $DEV_PATH
                     fi
                     
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
                     # Informações de deploy
                     echo "==================== DEPLOY DEVELOPMENT ===================="
                     echo "✅ Build concluído com sucesso!"
                     echo "✅ Caminho de deploy: $DEV_PATH"
                     echo "✅ Ambiente: Desenvolvimento"
                     echo "✅ Branch: develop"
+                    echo ""
+                    echo "🌐 URLs DE ACESSO:"
+                    echo "📱 Frontend: http://$SERVER_IP:5000/"
+                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -129,11 +138,20 @@ pipeline {
                         ls -la $HML_PATH
                     fi
                     
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
                     echo "==================== DEPLOY HOMOLOGATION =================="
                     echo "✅ Deploy realizado com sucesso!"
                     echo "✅ Caminho de deploy: $HML_PATH"
                     echo "✅ Ambiente: Homologação"
                     echo "✅ Branch: ${BRANCH_NAME}"
+                    echo ""
+                    echo "🌐 URLs DE ACESSO HOMOLOGAÇÃO:"
+                    echo "📱 Frontend: http://$SERVER_IP:5000/"
+                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -151,11 +169,20 @@ pipeline {
                         ls -la $PROD_PATH
                     fi
                     
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
                     echo "==================== DEPLOY PRODUCTION ====================="
                     echo "✅ Deploy realizado com sucesso!"
                     echo "✅ Caminho de deploy: $PROD_PATH"
                     echo "✅ Ambiente: Produção"
                     echo "✅ Branch: ${BRANCH_NAME}"
+                    echo ""
+                    echo "🌐 URLs DE ACESSO PRODUÇÃO:"
+                    echo "📱 Frontend: http://$SERVER_IP:5000/"
+                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
                     echo "========================================================="
                 '''
             }
@@ -179,6 +206,53 @@ pipeline {
                     echo "✅ Arquivos backend:"
                     ls -la $BACKEND_PATH
                     
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
+                    echo ""
+                    echo "🌐 URLs DE ACESSO BACKEND:"
+                    echo "🔌 API Principal: http://$SERVER_IP:5000/api/test"
+                    echo "🔐 Autenticação: http://$SERVER_IP:5000/api/auth/login"
+                    echo "📊 Dados Vendas: http://$SERVER_IP:5000/api/sales-data"
+                    echo "📊 Produtos: http://$SERVER_IP:5000/api/top-products"
+                    echo "📊 Métricas: http://$SERVER_IP:5000/api/customer-metrics"
+                    echo "========================================================="
+                '''
+            }
+        }
+        
+        stage('Start Services') {
+            steps {
+                sh '''
+                    echo "==================== INICIANDO SERVIÇOS =================="
+                    
+                    # Obter IP do servidor
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    
+                    # Parar serviços existentes
+                    pkill -f "python.*app.py" || true
+                    pkill -f "npm.*start" || true
+                    
+                    # Iniciar aplicação Flask (Frontend + API na porta 5000)
+                    cd /var/jenkins_home/workspace/deploy/kea-bi-backend
+                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    echo "✅ Aplicação Flask iniciada (Frontend + API na porta 5000)"
+                    
+                    # Aguardar serviços iniciarem
+                    sleep 5
+                    
+                    echo ""
+                    echo "🎉 KEA BUSINESS INTELLIGENCE DISPONÍVEL:"
+                    echo "📱 Frontend: http://$SERVER_IP:5000/"
+                    echo "🔌 API: http://$SERVER_IP:5000/api/test"
+                    echo "🔐 Login: http://$SERVER_IP:5000/api/auth/login"
+                    echo "📊 Dashboard: http://$SERVER_IP:5000/dashboard"
+                    echo "📈 Vendas: http://$SERVER_IP:5000/api/sales-data"
+                    echo "📦 Produtos: http://$SERVER_IP:5000/api/top-products"
+                    echo "👥 Clientes: http://$SERVER_IP:5000/api/customer-metrics"
+                    echo ""
+                    echo "📄 Logs:"
+                    echo "   Aplicação: /var/jenkins_home/workspace/deploy/app.log"
                     echo "========================================================="
                 '''
             }
