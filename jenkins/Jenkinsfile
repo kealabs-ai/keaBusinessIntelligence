@@ -203,31 +203,28 @@ pipeline {
                     pkill -f "python.*deploy_vps.py" || true
                     sleep 5
                     
-                    # Instalar dependências Python se necessário
-                    pip3 install flask flask-cors PyJWT mysql-connector-python python-dotenv || true
-                    
                     # Copiar arquivos para deploy
                     DEPLOY_PATH="/var/jenkins_home/workspace/deploy/kea-bi"
                     mkdir -p $DEPLOY_PATH
-                    cp -r backend $DEPLOY_PATH/
-                    cp -r frontend $DEPLOY_PATH/
-                    cp deploy_vps.py $DEPLOY_PATH/
-                    cp requirements_simple.txt $DEPLOY_PATH/
+                    cp -r backend $DEPLOY_PATH/ || true
+                    cp -r frontend $DEPLOY_PATH/ || true
+                    cp deploy_vps.py $DEPLOY_PATH/ || true
+                    cp simple_server.py $DEPLOY_PATH/ || true
+                    cp requirements_simple.txt $DEPLOY_PATH/ || true
                     
-                    # Criar diretório de frontend build se não existir
-                    mkdir -p $DEPLOY_PATH/frontend/businessIntelligence/build
-                    
-                    # Copiar build do frontend se existir
-                    if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* $DEPLOY_PATH/frontend/businessIntelligence/build/
-                    else
-                        # Criar index.html básico
-                        echo '<h1>Kea Business Intelligence</h1><p>API funcionando - Frontend em construção</p>' > $DEPLOY_PATH/frontend/businessIntelligence/build/index.html
-                    fi
-                    
-                    # Iniciar serviço principal
+                    # Tentar instalar dependências Flask
                     cd $DEPLOY_PATH
-                    nohup python3 deploy_vps.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    python3 -m pip install flask flask-cors PyJWT mysql-connector-python python-dotenv 2>/dev/null || echo "Flask não disponível, usando servidor simples"
+                    
+                    # Verificar se Flask está disponível
+                    if python3 -c "import flask" 2>/dev/null; then
+                        echo "Usando Flask (deploy_vps.py)"
+                        export PYTHONPATH=$DEPLOY_PATH:$PYTHONPATH
+                        nohup python3 deploy_vps.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    else
+                        echo "Usando servidor HTTP simples (simple_server.py)"
+                        nohup python3 simple_server.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    fi
                     
                     # Aguardar serviço iniciar
                     sleep 10
