@@ -4,6 +4,8 @@ pipeline {
     environment {
         APP_NAME = 'kea-business-intelligence'
         BUILD_DIR = 'frontend/businessIntelligence/build'
+        NODE_HOME = '/var/jenkins_home/nodejs'
+        PATH = "${NODE_HOME}/bin:${env.PATH}"
     }
     
     stages {
@@ -17,7 +19,7 @@ pipeline {
             steps {
                 sh '''
                     # Verificar se Node.js já está instalado
-                    if command -v node >/dev/null 2>&1; then
+                    if [ -f "$NODE_HOME/bin/node" ]; then
                         echo "Node.js já instalado: $(node --version)"
                         echo "NPM versão: $(npm --version)"
                     else
@@ -28,16 +30,13 @@ pipeline {
                         curl -L -o node-v18.19.0-linux-x64.tar.gz https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz
                         tar -xzf node-v18.19.0-linux-x64.tar.gz
                         
-                        # Mover para /usr/local
-                        cp -r node-v18.19.0-linux-x64/* /usr/local/
+                        # Instalar em diretório local
+                        mkdir -p $NODE_HOME
+                        cp -r node-v18.19.0-linux-x64/* $NODE_HOME/
                         
                         # Verificar instalação
-                        /usr/local/bin/node --version
-                        /usr/local/bin/npm --version
-                        
-                        # Criar links simbólicos
-                        ln -sf /usr/local/bin/node /usr/bin/node
-                        ln -sf /usr/local/bin/npm /usr/bin/npm
+                        echo "Node.js instalado: $(node --version)"
+                        echo "NPM versão: $(npm --version)"
                         
                         # Limpar arquivos temporários
                         rm -rf /tmp/node-v18.19.0-linux-x64*
