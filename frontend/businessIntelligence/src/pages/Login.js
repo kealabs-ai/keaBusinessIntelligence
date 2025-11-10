@@ -68,7 +68,7 @@ function Login() {
                 onClick={() => navigate('/dashboard')}
                 type="button"
               >
-                Dashboard Exemplo
+                Dashboard Exemplo 2
               </Link>
             </Box>
           </Box>
