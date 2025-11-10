@@ -94,9 +94,17 @@ pipeline {
                             break
                         else
                             echo "Aguardando desenvolvimento... ($i/10)"
+                            echo "Log: $(tail -5 /tmp/kea-dev.log)"
                             sleep 10
                         fi
                     done
+                    
+                    # Verificar se processo está rodando
+                    if ! ps aux | grep -q "python3 start_dev.py"; then
+                        echo "❌ Processo não está rodando. Log completo:"
+                        cat /tmp/kea-dev.log
+                        exit 1
+                    fi
                 '''
             }
         }
@@ -217,6 +225,10 @@ pipeline {
                         echo "🟢 DESENVOLVIMENTO: http://$SERVER_IP:6002/"
                         echo "   API: http://$SERVER_IP:6002/api/test"
                         echo "   Login: http://$SERVER_IP:6002/api/auth/login"
+                    else
+                        echo "❌ DESENVOLVIMENTO: Serviço não responde na porta 6002"
+                        echo "   Log: $(tail -3 /tmp/kea-dev.log 2>/dev/null || echo 'Log não encontrado')"
+                        echo "   Processo: $(ps aux | grep 'start_dev.py' | grep -v grep || echo 'Processo não encontrado')"
                     fi
                     
                     echo "📄 Logs disponíveis em: /tmp/kea-*.log"
