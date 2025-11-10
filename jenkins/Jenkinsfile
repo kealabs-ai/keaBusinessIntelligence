@@ -29,8 +29,22 @@ pipeline {
         stage('Setup') {
             steps {
                 sh '''
+                    # Verificar Python disponível
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                        PIP_CMD="pip3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                        PIP_CMD="pip"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
+                    echo "✅ Usando: $PYTHON_CMD"
+                    
                     # Instalar Python deps
-                    pip3 install -r requirements.txt || python3 -m pip install -r requirements.txt || true
+                    $PIP_CMD install -r requirements.txt || $PYTHON_CMD -m pip install -r requirements.txt || true
                     
                     # Parar processos existentes
                     pkill -f "python.*start_" || true
@@ -80,8 +94,18 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
                     # Iniciar serviço
-                    nohup python3 start_dev.py > /tmp/kea-dev.log 2>&1 &
+                    nohup $PYTHON_CMD start_dev.py > /tmp/kea-dev.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -100,7 +124,7 @@ pipeline {
                     done
                     
                     # Verificar se processo está rodando
-                    if ! ps aux | grep -q "python3 start_dev.py"; then
+                    if ! ps aux | grep -q "start_dev.py"; then
                         echo "❌ Processo não está rodando. Log completo:"
                         cat /tmp/kea-dev.log
                         exit 1
@@ -128,8 +152,18 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
                     # Iniciar serviço
-                    nohup python3 start_hml.py > /tmp/kea-hml.log 2>&1 &
+                    nohup $PYTHON_CMD start_hml.py > /tmp/kea-hml.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -168,8 +202,18 @@ pipeline {
                     
                     cd $DEPLOY_DIR
                     
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
                     # Iniciar serviço
-                    nohup python3 start_prod.py > /tmp/kea-prod.log 2>&1 &
+                    nohup $PYTHON_CMD start_prod.py > /tmp/kea-prod.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
