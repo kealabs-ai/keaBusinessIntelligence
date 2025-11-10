@@ -18,7 +18,7 @@ check_health() {
     
     echo "Verificando saúde do $env_name (porta $port)..."
     
-    for i in {1..15}; do
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
         if curl -f http://localhost:$port/api/test > /dev/null 2>&1; then
             echo "✅ $env_name respondendo na porta $port"
             return 0
@@ -34,9 +34,9 @@ check_health() {
 
 # Parar containers existentes
 echo "Parando containers existentes..."
-docker-compose -f docker/docker-compose.dev.yml down 2>/dev/null || true
-docker-compose -f docker/docker-compose.hml.yml down 2>/dev/null || true
-docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
+docker compose -f docker/docker-compose.dev.yml down 2>/dev/null || true
+docker compose -f docker/docker-compose.hml.yml down 2>/dev/null || true
+docker compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
 
 # Limpar imagens se forçado
 if [ "$FORCE_REBUILD" = "true" ]; then
@@ -49,17 +49,17 @@ fi
 case $ENVIRONMENT in
     "dev"|"development")
         echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
-        docker-compose -f docker/docker-compose.dev.yml up --build -d
+        docker compose -f docker/docker-compose.dev.yml up --build -d
         check_health 6002 "DESENVOLVIMENTO"
         ;;
     "hml"|"homologation")
         echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
-        docker-compose -f docker/docker-compose.hml.yml up --build -d
+        docker compose -f docker/docker-compose.hml.yml up --build -d
         check_health 6001 "HOMOLOGAÇÃO"
         ;;
     "prod"|"production")
         echo "🔴 Iniciando deploy PRODUÇÃO..."
-        docker-compose -f docker/docker-compose.prod.yml up --build -d
+        docker compose -f docker/docker-compose.prod.yml up --build -d
         check_health 6000 "PRODUÇÃO"
         ;;
     "all")
@@ -67,17 +67,17 @@ case $ENVIRONMENT in
         
         # Desenvolvimento
         echo "🟢 Deploy DESENVOLVIMENTO..."
-        docker-compose -f docker/docker-compose.dev.yml up --build -d
+        docker compose -f docker/docker-compose.dev.yml up --build -d
         sleep 20
         
         # Homologação
         echo "🟡 Deploy HOMOLOGAÇÃO..."
-        docker-compose -f docker/docker-compose.hml.yml up --build -d
+        docker compose -f docker/docker-compose.hml.yml up --build -d
         sleep 20
         
         # Produção
         echo "🔴 Deploy PRODUÇÃO..."
-        docker-compose -f docker/docker-compose.prod.yml up --build -d
+        docker compose -f docker/docker-compose.prod.yml up --build -d
         sleep 20
         
         # Verificar todos

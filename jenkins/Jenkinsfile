@@ -30,12 +30,16 @@ pipeline {
             steps {
                 sh '''
                     # Parar todos os containers existentes
-                    docker-compose -f docker/docker-compose.dev.yml down || true
-                    docker-compose -f docker/docker-compose.hml.yml down || true
-                    docker-compose -f docker/docker-compose.prod.yml down || true
+                    docker compose -f docker/docker-compose.dev.yml down || true
+                    docker compose -f docker/docker-compose.hml.yml down || true
+                    docker compose -f docker/docker-compose.prod.yml down || true
+                    
+                    # Parar containers individuais se existirem
+                    docker stop kea-bi-development kea-bi-homologation kea-bi-production || true
+                    docker rm kea-bi-development kea-bi-homologation kea-bi-production || true
                     
                     # Limpar imagens antigas se forçado
-                    if [ "${params.FORCE_REBUILD}" = "true" ]; then
+                    if [ "$FORCE_REBUILD" = "true" ]; then
                         docker system prune -f
                         docker rmi $(docker images kea* -q) || true
                     fi
@@ -53,13 +57,13 @@ pipeline {
             steps {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
-                    docker-compose -f docker/docker-compose.dev.yml up --build -d
+                    docker compose -f docker/docker-compose.dev.yml up --build -d
                     
                     # Aguardar inicialização
                     sleep 30
                     
                     # Health check
-                    for i in {1..10}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
                             SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                             echo "✅ DESENVOLVIMENTO OK - http://$SERVER_IP:6002/"
@@ -83,13 +87,13 @@ pipeline {
             steps {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
-                    docker-compose -f docker/docker-compose.hml.yml up --build -d
+                    docker compose -f docker/docker-compose.hml.yml up --build -d
                     
                     # Aguardar inicialização
                     sleep 30
                     
                     # Health check
-                    for i in {1..10}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
                             SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                             echo "✅ HOMOLOGAÇÃO OK - http://$SERVER_IP:6001/"
@@ -113,13 +117,13 @@ pipeline {
             steps {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
-                    docker-compose -f docker/docker-compose.prod.yml up --build -d
+                    docker compose -f docker/docker-compose.prod.yml up --build -d
                     
                     # Aguardar inicialização
                     sleep 30
                     
                     # Health check
-                    for i in {1..10}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
                             SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                             echo "✅ PRODUÇÃO OK - http://$SERVER_IP:6000/"
@@ -140,8 +144,8 @@ pipeline {
                     
                     echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY CONCLUÍDO"
                     echo "📅 Data: $(date)"
-                    echo "🌿 Branch: ${BRANCH_NAME}"
-                    echo "🎯 Ambiente: ${params.ENVIRONMENT}"
+                    echo "🌿 Branch: $BRANCH_NAME"
+                    echo "🎯 Ambiente: $ENVIRONMENT"
                     echo ""
                     
                     # Verificar status dos containers

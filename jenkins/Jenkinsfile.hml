@@ -17,9 +17,9 @@ pipeline {
         stage('Stop Existing Container') {
             steps {
                 sh '''
-                    docker-compose -f docker/docker-compose.hml.yml down || true
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
+                    docker compose -f docker/docker-compose.hml.yml down || true
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
                 '''
             }
         }
@@ -28,17 +28,17 @@ pipeline {
             steps {
                 sh '''
                     # Build e deploy usando docker-compose
-                    docker-compose -f docker/docker-compose.hml.yml up --build -d
+                    docker compose -f docker/docker-compose.hml.yml up --build -d
                     
                     # Aguardar container iniciar
                     sleep 30
                     
                     # Verificar se está rodando
-                    if docker ps | grep -q ${CONTAINER_NAME}; then
-                        echo "✅ Container ${CONTAINER_NAME} rodando"
+                    if docker ps | grep -q $CONTAINER_NAME; then
+                        echo "✅ Container $CONTAINER_NAME rodando"
                     else
-                        echo "❌ Container ${CONTAINER_NAME} não está rodando"
-                        docker logs ${CONTAINER_NAME}
+                        echo "❌ Container $CONTAINER_NAME não está rodando"
+                        docker logs $CONTAINER_NAME
                         exit 1
                     fi
                 '''
@@ -49,7 +49,7 @@ pipeline {
             steps {
                 sh '''
                     # Verificar saúde da aplicação
-                    for i in {1..10}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
                             echo "✅ Aplicação respondendo na porta 6001"
                             break
@@ -68,7 +68,7 @@ pipeline {
                         echo "🔐 Login: http://$SERVER_IP:6001/api/auth/login"
                     else
                         echo "❌ Aplicação não está respondendo"
-                        docker logs ${CONTAINER_NAME}
+                        docker logs $CONTAINER_NAME
                         exit 1
                     fi
                 '''
@@ -81,7 +81,7 @@ pipeline {
             echo '🎉 Deploy de homologação realizado com sucesso!'
         }
         failure {
-            sh 'docker logs ${CONTAINER_NAME} || true'
+            sh 'docker logs $CONTAINER_NAME || true'
             echo '❌ Deploy de homologação falhou!'
         }
     }
