@@ -26,25 +26,33 @@ pipeline {
             }
         }
         
-        stage('Build and Deploy Container') {
+        stage('Setup Environment') {
             steps {
                 sh '''
-                    # Parar e remover container existente se houver
-                    docker stop kea-bi-app || true
-                    docker rm kea-bi-app || true
+                    # Verificar Python disponível
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
                     
-                    # Build nova imagem
-                    docker build -t kea-bi:latest -f docker/Dockerfile .
+                    echo "✅ Usando: $PYTHON_CMD"
                     
-                    # Criar e iniciar novo container
-                    docker run -d --name kea-bi-app \
-                        -p 6000:6000 -p 6001:6001 -p 6002:6002 \
-                        --env-file .env.prod \
-                        -e ENVIRONMENT=production \
-                        -e SERVER_PORT=6000 \
-                        kea-bi:latest
+                    # Instalar dependências
+                    if [ -f "requirements_simple.txt" ]; then
+                        $PYTHON_CMD -m pip install -r requirements_simple.txt || true
+                    elif [ -f "requirements.txt" ]; then
+                        $PYTHON_CMD -m pip install -r requirements.txt || true
+                    fi
                     
-                    echo "✅ Novo container criado e iniciado"
+                    # Parar processos existentes
+                    pkill -f "python.*start_" || true
+                    sleep 5
+                    
+                    echo "✅ Ambiente configurado"
                 '''
             }
         }
@@ -62,8 +70,18 @@ pipeline {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
                     
-                    # Executar ambiente de desenvolvimento no container
-                    docker exec -d kea-bi-app python /app/start_dev.py
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
+                    # Iniciar serviço
+                    nohup $PYTHON_CMD start_dev.py > /tmp/kea-dev.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -94,8 +112,18 @@ pipeline {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
                     
-                    # Executar ambiente de homologação no container
-                    docker exec -d kea-bi-app python /app/start_hml.py
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
+                    # Iniciar serviço
+                    nohup $PYTHON_CMD start_hml.py > /tmp/kea-hml.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
@@ -126,8 +154,18 @@ pipeline {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
                     
-                    # Executar ambiente de produção no container (já iniciado por padrão)
-                    # O container já está rodando produção por padrão
+                    # Detectar Python
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD="python3"
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD="python"
+                    else
+                        echo "❌ Python não encontrado"
+                        exit 1
+                    fi
+                    
+                    # Iniciar serviço
+                    nohup $PYTHON_CMD start_prod.py > /tmp/kea-prod.log 2>&1 &
                     
                     # Aguardar inicialização
                     sleep 20
