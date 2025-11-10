@@ -6,8 +6,8 @@ import os
 import hashlib
 
 app = Flask(__name__, 
-                    template_folder='../../frontend/build',
-                    static_folder='../../frontend/build/static')
+                    template_folder='../../frontend/businessIntelligence/build',
+                    static_folder='../../frontend/businessIntelligence/build/static')
 CORS(app)
 
 # Registrar blueprint de autenticação
@@ -15,15 +15,31 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 
 @app.route('/')
 def index():
-    return send_from_directory('../../frontend/build', 'index.html')
+    try:
+        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+    except:
+        return '<h1>Kea Business Intelligence</h1><p>Frontend em construção</p>'
 
 @app.route('/dashboard')
 def dashboard():
-    return send_from_directory('../../frontend/build', 'index.html')
+    try:
+        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+    except:
+        return '<h1>Dashboard</h1><p>Frontend em construção</p>'
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
-    return send_from_directory('../../frontend/build/static', filename)
+    try:
+        return send_from_directory('../../frontend/businessIntelligence/build/static', filename)
+    except:
+        return 'File not found', 404
+
+@app.route('/<path:path>')
+def catch_all(path):
+    try:
+        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+    except:
+        return '<h1>Kea Business Intelligence</h1><p>Página não encontrada</p>'
 
 @app.route('/api/test')
 def test():
@@ -81,4 +97,7 @@ def get_customer_metrics():
     })
 
 if __name__ == '__main__':
+    print("Servidor iniciando...")
+    print("API: http://0.0.0.0:5000/api/test")
+    print("Auth: http://0.0.0.0:5000/api/auth/login")
     app.run(debug=True, host='0.0.0.0', port=5000)

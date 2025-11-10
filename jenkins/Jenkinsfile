@@ -188,38 +188,7 @@ pipeline {
             }
         }
         
-        stage('Deploy Backend') {
-            steps {
-                sh '''
-                    echo "==================== DEPLOY BACKEND ========================"
-                    
-                    # Criar diretório para backend
-                    BACKEND_PATH="/var/jenkins_home/workspace/deploy/kea-bi-backend"
-                    mkdir -p $BACKEND_PATH
-                    
-                    # Copiar arquivos do backend
-                    cp -r backend/* $BACKEND_PATH/ || true
-                    cp requirements.txt $BACKEND_PATH/ || true
-                    cp .env $BACKEND_PATH/ || true
-                    
-                    echo "✅ Backend copiado para: $BACKEND_PATH"
-                    echo "✅ Arquivos backend:"
-                    ls -la $BACKEND_PATH
-                    
-                    # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    
-                    echo ""
-                    echo "🌐 URLs DE ACESSO BACKEND:"
-                    echo "🔌 API Principal: http://$SERVER_IP:5000/api/test"
-                    echo "🔐 Autenticação: http://$SERVER_IP:5000/api/auth/login"
-                    echo "📊 Dados Vendas: http://$SERVER_IP:5000/api/sales-data"
-                    echo "📊 Produtos: http://$SERVER_IP:5000/api/top-products"
-                    echo "📊 Métricas: http://$SERVER_IP:5000/api/customer-metrics"
-                    echo "========================================================="
-                '''
-            }
-        }
+
         
         stage('Start Services') {
             steps {
@@ -231,55 +200,58 @@ pipeline {
                     
                     # Parar serviços existentes
                     pkill -f "python.*app.py" || true
+                    pkill -f "python.*deploy_vps.py" || true
+                    sleep 5
                     
-                    # Criar scripts de inicialização para cada ambiente
+                    # Instalar dependências Python se necessário
+                    pip3 install flask flask-cors PyJWT mysql-connector-python python-dotenv || true
                     
-                    # Desenvolvimento - Porta 5001
-                    cd /var/jenkins_home/workspace/deploy/kea-bi-backend
-                    cp -r ../kea-bi-dev/* .
-                    sed -i 's/port=5000/port=5001/' api/app.py
-                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/dev.log 2>&1 &
-                    echo "✅ Desenvolvimento iniciado na porta 5001"
+                    # Copiar arquivos para deploy
+                    DEPLOY_PATH="/var/jenkins_home/workspace/deploy/kea-bi"
+                    mkdir -p $DEPLOY_PATH
+                    cp -r backend $DEPLOY_PATH/
+                    cp -r frontend $DEPLOY_PATH/
+                    cp deploy_vps.py $DEPLOY_PATH/
+                    cp requirements_simple.txt $DEPLOY_PATH/
                     
-                    # Homologação - Porta 5002
-                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-hml-backend
-                    cd /var/jenkins_home/workspace/deploy/kea-bi-hml-backend
-                    cp -r ../kea-bi-backend/* .
-                    cp -r ../kea-bi-hml/* .
-                    sed -i 's/port=5001/port=5002/' api/app.py
-                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/hml.log 2>&1 &
-                    echo "✅ Homologação iniciada na porta 5002"
+                    # Criar diretório de frontend build se não existir
+                    mkdir -p $DEPLOY_PATH/frontend/businessIntelligence/build
                     
-                    # Produção - Porta 5003
-                    mkdir -p /var/jenkins_home/workspace/deploy/kea-bi-prod-backend
-                    cd /var/jenkins_home/workspace/deploy/kea-bi-prod-backend
-                    cp -r ../kea-bi-backend/* .
-                    cp -r ../kea-bi-prod/* .
-                    sed -i 's/port=5002/port=5003/' api/app.py
-                    nohup python3 api/app.py > /var/jenkins_home/workspace/deploy/prod.log 2>&1 &
-                    echo "✅ Produção iniciada na porta 5003"
+                    # Copiar build do frontend se existir
+                    if [ -d "frontend/businessIntelligence/build" ]; then
+                        cp -r frontend/businessIntelligence/build/* $DEPLOY_PATH/frontend/businessIntelligence/build/
+                    else
+                        # Criar index.html básico
+                        echo '<h1>Kea Business Intelligence</h1><p>API funcionando - Frontend em construção</p>' > $DEPLOY_PATH/frontend/businessIntelligence/build/index.html
+                    fi
                     
-                    # Aguardar serviços iniciarem
+                    # Iniciar serviço principal
+                    cd $DEPLOY_PATH
+                    nohup python3 deploy_vps.py > /var/jenkins_home/workspace/deploy/app.log 2>&1 &
+                    
+                    # Aguardar serviço iniciar
                     sleep 10
                     
+                    # Verificar se está rodando
+                    if curl -f http://localhost:5000/api/test > /dev/null 2>&1; then
+                        echo "✅ Serviço iniciado com sucesso!"
+                    else
+                        echo "❌ Erro ao iniciar serviço"
+                        echo "Log do erro:"
+                        tail -20 /var/jenkins_home/workspace/deploy/app.log
+                    fi
+                    
                     echo ""
-                    echo "🎉 KEA BUSINESS INTELLIGENCE - TODOS OS AMBIENTES:"
-                    echo "🔧 DESENVOLVIMENTO (5001):"
-                    echo "   📱 Frontend: http://$SERVER_IP:5001/"
-                    echo "   🔌 API: http://$SERVER_IP:5001/api/test"
+                    echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY COMPLETO:"
+                    echo "🌐 URLs DE ACESSO:"
+                    echo "   📱 Frontend: http://$SERVER_IP:5000/"
+                    echo "   🔌 API Test: http://$SERVER_IP:5000/api/test"
+                    echo "   🔐 Login: http://$SERVER_IP:5000/api/auth/login"
+                    echo "   📊 Sales: http://$SERVER_IP:5000/api/sales-data"
+                    echo "   📋 Routes: http://$SERVER_IP:5000/api/debug/routes"
                     echo ""
-                    echo "🧪 HOMOLOGAÇÃO (5002):"
-                    echo "   📱 Frontend: http://$SERVER_IP:5002/"
-                    echo "   🔌 API: http://$SERVER_IP:5002/api/test"
-                    echo ""
-                    echo "🚀 PRODUÇÃO (5003):"
-                    echo "   📱 Frontend: http://$SERVER_IP:5003/"
-                    echo "   🔌 API: http://$SERVER_IP:5003/api/test"
-                    echo ""
-                    echo "📄 Logs:"
-                    echo "   Dev: /var/jenkins_home/workspace/deploy/dev.log"
-                    echo "   HML: /var/jenkins_home/workspace/deploy/hml.log"
-                    echo "   Prod: /var/jenkins_home/workspace/deploy/prod.log"
+                    echo "📄 Logs: /var/jenkins_home/workspace/deploy/app.log"
+                    echo "📁 Deploy: $DEPLOY_PATH"
                     echo "========================================================="
                 '''
             }
