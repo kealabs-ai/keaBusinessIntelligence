@@ -26,13 +26,52 @@ pipeline {
             }
         }
         
+        stage('Install Docker') {
+            steps {
+                sh '''
+                    # Verificar se Docker está instalado
+                    if ! command -v docker &> /dev/null; then
+                        echo "Instalando Docker..."
+                        curl -fsSL https://get.docker.com -o get-docker.sh
+                        sh get-docker.sh
+                        rm get-docker.sh
+                        
+                        # Adicionar usuário ao grupo docker
+                        usermod -aG docker jenkins || true
+                        
+                        # Iniciar serviço Docker
+                        systemctl start docker || service docker start || true
+                        systemctl enable docker || true
+                    else
+                        echo "Docker já instalado: $(docker --version)"
+                    fi
+                    
+                    # Verificar Docker Compose
+                    if ! docker compose version &> /dev/null; then
+                        echo "Docker Compose não disponível, usando docker-compose"
+                        if ! command -v docker-compose &> /dev/null; then
+                            echo "Instalando docker-compose..."
+                            curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                            chmod +x /usr/local/bin/docker-compose
+                        fi
+                    fi
+                '''
+            }
+        }
+        
         stage('Cleanup') {
             steps {
                 sh '''
                     # Parar todos os containers existentes
-                    docker compose -f docker/docker-compose.dev.yml down || true
-                    docker compose -f docker/docker-compose.hml.yml down || true
-                    docker compose -f docker/docker-compose.prod.yml down || true
+                    if docker compose version &> /dev/null; then
+                        docker compose -f docker/docker-compose.dev.yml down || true
+                        docker compose -f docker/docker-compose.hml.yml down || true
+                        docker compose -f docker/docker-compose.prod.yml down || true
+                    else
+                        docker-compose -f docker/docker-compose.dev.yml down || true
+                        docker-compose -f docker/docker-compose.hml.yml down || true
+                        docker-compose -f docker/docker-compose.prod.yml down || true
+                    fi
                     
                     # Parar containers individuais se existirem
                     docker stop kea-bi-development kea-bi-homologation kea-bi-production || true
@@ -57,7 +96,11 @@ pipeline {
             steps {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
-                    docker compose -f docker/docker-compose.dev.yml up --build -d
+                    if docker compose version &> /dev/null; then
+                        docker compose -f docker/docker-compose.dev.yml up --build -d
+                    else
+                        docker-compose -f docker/docker-compose.dev.yml up --build -d
+                    fi
                     
                     # Aguardar inicialização
                     sleep 30
@@ -87,7 +130,11 @@ pipeline {
             steps {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
-                    docker compose -f docker/docker-compose.hml.yml up --build -d
+                    if docker compose version &> /dev/null; then
+                        docker compose -f docker/docker-compose.hml.yml up --build -d
+                    else
+                        docker-compose -f docker/docker-compose.hml.yml up --build -d
+                    fi
                     
                     # Aguardar inicialização
                     sleep 30
@@ -117,7 +164,11 @@ pipeline {
             steps {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
-                    docker compose -f docker/docker-compose.prod.yml up --build -d
+                    if docker compose version &> /dev/null; then
+                        docker compose -f docker/docker-compose.prod.yml up --build -d
+                    else
+                        docker-compose -f docker/docker-compose.prod.yml up --build -d
+                    fi
                     
                     # Aguardar inicialização
                     sleep 30

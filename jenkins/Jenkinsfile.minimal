@@ -2,66 +2,53 @@ pipeline {
     agent any
     
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-        
-        stage('Check Node.js') {
+        stage('Setup') {
             steps {
                 sh '''
-                    if command -v node >/dev/null 2>&1; then
-                        echo "Node.js já instalado: $(node --version)"
-                        echo "NPM versão: $(npm --version)"
-                    else
-                        echo "Node.js não encontrado, instalando..."
-                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                        apt-get install -y nodejs
-                        echo "Node.js instalado: $(node --version)"
+                    # Instalar Docker se necessário
+                    if ! command -v docker &> /dev/null; then
+                        curl -fsSL https://get.docker.com | sh
+                        usermod -aG docker jenkins || true
                     fi
+                    
+                    # Parar containers existentes
+                    docker stop kea-bi-production kea-bi-homologation kea-bi-development || true
+                    docker rm kea-bi-production kea-bi-homologation kea-bi-development || true
                 '''
-            }
-        }
-        
-        stage('Build Frontend') {
-            steps {
-                dir('frontend/businessIntelligence') {
-                    sh '''
-                        echo "Instalando dependências..."
-                        npm install
-                        echo "Construindo aplicação..."
-                        npm run build
-                        echo "Build concluído!"
-                        ls -la build/
-                    '''
-                }
             }
         }
         
         stage('Deploy') {
             steps {
                 sh '''
-                    echo "Preparando deploy..."
-                    mkdir -p /tmp/kea-bi-deploy
-                    cp -r frontend/businessIntelligence/build/* /tmp/kea-bi-deploy/
+                    # Build e deploy usando Docker diretamente
+                    cd docker
                     
-                    echo "Arquivos copiados para /tmp/kea-bi-deploy/"
-                    ls -la /tmp/kea-bi-deploy/
+                    # Produção
+                    docker build -t kea-bi:prod -f Dockerfile ..
+                    docker run -d --name kea-bi-production -p 6000:6000 --env-file ../.env.prod -e SERVER_PORT=6000 -e ENVIRONMENT=production kea-bi:prod
                     
-                    echo "✅ Deploy concluído com sucesso!"
-                    echo "📁 Arquivos disponíveis em: /tmp/kea-bi-deploy/"
+                    # Homologação  
+                    docker run -d --name kea-bi-homologation -p 6001:6001 --env-file ../.env.hml -e SERVER_PORT=6001 -e ENVIRONMENT=homologation kea-bi:prod
+                    
+                    # Desenvolvimento
+                    docker run -d --name kea-bi-development -p 6002:6002 --env-file ../.env.dev -e SERVER_PORT=6002 -e ENVIRONMENT=development kea-bi:prod
+                    
+                    # Aguardar inicialização
+                    sleep 30
+                    
+                    # Verificar saúde
+                    echo "🔴 Produção: $(curl -s http://localhost:6000/api/test || echo 'ERRO')"
+                    echo "🟡 Homologação: $(curl -s http://localhost:6001/api/test || echo 'ERRO')" 
+                    echo "🟢 Desenvolvimento: $(curl -s http://localhost:6002/api/test || echo 'ERRO')"
+                    
+                    # URLs de acesso
+                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    echo "🌐 Produção: http://$SERVER_IP:6000/"
+                    echo "🌐 Homologação: http://$SERVER_IP:6001/"
+                    echo "🌐 Desenvolvimento: http://$SERVER_IP:6002/"
                 '''
             }
-        }
-    }
-    
-    post {
-        success {
-            echo '🎉 Pipeline executado com sucesso!'
-        }
-        failure {
-            echo '❌ Pipeline falhou!'
         }
     }
 }

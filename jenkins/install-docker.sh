@@ -1,41 +1,46 @@
 #!/bin/bash
 
-# Script para instalar Docker no Jenkins agent
+# Script para instalar Docker no Jenkins
+echo "=== INSTALANDO DOCKER NO JENKINS ==="
 
-echo "Instalando Docker..."
+# Verificar se já está instalado
+if command -v docker &> /dev/null; then
+    echo "✅ Docker já instalado: $(docker --version)"
+    exit 0
+fi
+
+echo "📦 Instalando Docker..."
 
 # Atualizar sistema
-sudo apt-get update
+apt-get update -y
 
 # Instalar dependências
-sudo apt-get install -y \
+apt-get install -y \
+    apt-transport-https \
     ca-certificates \
     curl \
     gnupg \
     lsb-release
 
 # Adicionar chave GPG do Docker
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
-# Adicionar repositório Docker
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# Adicionar repositório
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Instalar Docker
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+# Atualizar e instalar Docker
+apt-get update -y
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Iniciar Docker
+systemctl start docker
+systemctl enable docker
 
 # Adicionar usuário jenkins ao grupo docker
-sudo usermod -aG docker jenkins
-
-# Iniciar e habilitar Docker
-sudo systemctl start docker
-sudo systemctl enable docker
+usermod -aG docker jenkins || true
 
 # Verificar instalação
 docker --version
-docker-compose --version
+docker compose version
 
-echo "Docker instalado com sucesso!"
+echo "✅ Docker instalado com sucesso!"
