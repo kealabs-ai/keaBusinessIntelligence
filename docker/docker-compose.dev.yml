@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  kea-bi-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "6002:6002"
+    env_file:
+      - ../.env.dev
+    environment:
+      - ENVIRONMENT=development
+      - SERVER_PORT=6002
+      - DEBUG=True
+    volumes:
+      - ../backend:/app/backend
+      - ../frontend:/app/frontend
+    restart: unless-stopped
+    container_name: kea-bi-development

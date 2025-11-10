@@ -4,7 +4,7 @@ pipeline {
     environment {
         APP_NAME = 'kea-business-intelligence'
         ENVIRONMENT = 'production'
-        PORT = '6000'
+        CONTAINER_NAME = 'kea-bi-production'
     }
     
     stages {
@@ -14,51 +14,61 @@ pipeline {
             }
         }
         
-        stage('Build Frontend') {
+        stage('Stop Existing Container') {
             steps {
-                dir('frontend/businessIntelligence') {
-                    sh '''
-                        npm install
-                        npm run build
-                    '''
-                }
+                sh '''
+                    docker-compose -f docker/docker-compose.prod.yml down || true
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                '''
             }
         }
         
-        stage('Deploy Production') {
+        stage('Build and Deploy') {
             steps {
                 sh '''
-                    PROD_PATH="/var/jenkins_home/workspace/deploy/kea-bi-prod"
-                    mkdir -p $PROD_PATH
+                    # Build e deploy usando docker-compose
+                    docker-compose -f docker/docker-compose.prod.yml up --build -d
                     
-                    # Copiar todos os arquivos
-                    cp -r . $PROD_PATH/
-                    
-                    # Parar serviço existente
-                    pkill -f "python.*start_prod.py" || true
-                    sleep 5
-                    
-                    # Instalar dependências
-                    cd $PROD_PATH
-                    python3 -m pip install -r requirements.txt
-                    
-                    # Iniciar serviço de produção
-                    export PYTHONPATH=$PROD_PATH:$PYTHONPATH
-                    nohup python3 start_prod.py > /var/jenkins_home/workspace/deploy/prod.log 2>&1 &
-                    
-                    sleep 10
+                    # Aguardar container iniciar
+                    sleep 30
                     
                     # Verificar se está rodando
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    if docker ps | grep -q ${CONTAINER_NAME}; then
+                        echo "✅ Container ${CONTAINER_NAME} rodando"
+                    else
+                        echo "❌ Container ${CONTAINER_NAME} não está rodando"
+                        docker logs ${CONTAINER_NAME}
+                        exit 1
+                    fi
+                '''
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                sh '''
+                    # Verificar saúde da aplicação
+                    for i in {1..10}; do
+                        if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
+                            echo "✅ Aplicação respondendo na porta 6000"
+                            break
+                        else
+                            echo "Tentativa $i/10 - Aguardando aplicação..."
+                            sleep 10
+                        fi
+                    done
                     
+                    # Verificação final
                     if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
-                        echo "✅ Produção iniciada com sucesso!"
+                        SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                        echo "🎉 PRODUÇÃO DEPLOY CONCLUÍDO!"
                         echo "🌐 Frontend: http://$SERVER_IP:6000/"
                         echo "🔌 API: http://$SERVER_IP:6000/api/test"
                         echo "🔐 Login: http://$SERVER_IP:6000/api/auth/login"
                     else
-                        echo "❌ Erro ao iniciar produção"
-                        tail -20 /var/jenkins_home/workspace/deploy/prod.log
+                        echo "❌ Aplicação não está respondendo"
+                        docker logs ${CONTAINER_NAME}
                         exit 1
                     fi
                 '''
@@ -71,6 +81,7 @@ pipeline {
             echo '🎉 Deploy de produção realizado com sucesso!'
         }
         failure {
+            sh 'docker logs ${CONTAINER_NAME} || true'
             echo '❌ Deploy de produção falhou!'
         }
     }

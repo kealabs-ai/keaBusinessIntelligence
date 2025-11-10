@@ -27,6 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 COPY --from=frontend-build /app/frontend/build ./frontend/build
 
-EXPOSE 6000
+# Criar diretório para frontend se não existir
+RUN mkdir -p /app/frontend/build
 
-CMD ["gunicorn", "--bind", "0.0.0.0:6000", "backend.api.app:app"]
+EXPOSE 6000 6001 6002
+
+CMD ["python", "start_container.py"]

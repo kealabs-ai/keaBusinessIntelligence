@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  kea-bi:
+  kea-bi-prod:
     build:
       context: ..
       dockerfile: docker/Dockerfile

@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  kea-bi:
+  kea-bi-hml:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "6000:6000"
+      - "6001:6001"
     env_file:
-      - ../.env.prod
+      - ../.env.hml
     environment:
-      - ENVIRONMENT=production
-      - SERVER_PORT=6000
+      - ENVIRONMENT=homologation
+      - SERVER_PORT=6001
       - DEBUG=False
     restart: unless-stopped
-    container_name: kea-bi-production
+    container_name: kea-bi-homologation

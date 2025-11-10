@@ -4,10 +4,25 @@ from backend.auth.token_manager import TokenManager, token_required
 from backend.api.auth_endpoints import auth_bp
 import os
 import hashlib
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
+
+# Detectar se está rodando em container
+IS_CONTAINER = os.path.exists('/.dockerenv')
+
+# Definir caminhos baseado no ambiente
+if IS_CONTAINER:
+    FRONTEND_BUILD_PATH = '/app/frontend/build'
+    FRONTEND_STATIC_PATH = '/app/frontend/build/static'
+else:
+    FRONTEND_BUILD_PATH = '../../frontend/businessIntelligence/build'
+    FRONTEND_STATIC_PATH = '../../frontend/businessIntelligence/build/static'
 
 app = Flask(__name__, 
-                    template_folder='../../frontend/businessIntelligence/build',
-                    static_folder='../../frontend/businessIntelligence/build/static')
+                    template_folder=FRONTEND_BUILD_PATH,
+                    static_folder=FRONTEND_STATIC_PATH)
 CORS(app)
 
 # Registrar blueprint de autenticação
@@ -16,28 +31,28 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 @app.route('/')
 def index():
     try:
-        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+        return send_from_directory(FRONTEND_BUILD_PATH, 'index.html')
     except:
         return '<h1>Kea Business Intelligence</h1><p>Frontend em construção</p>'
 
 @app.route('/dashboard')
 def dashboard():
     try:
-        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+        return send_from_directory(FRONTEND_BUILD_PATH, 'index.html')
     except:
         return '<h1>Dashboard</h1><p>Frontend em construção</p>'
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
     try:
-        return send_from_directory('../../frontend/businessIntelligence/build/static', filename)
+        return send_from_directory(FRONTEND_STATIC_PATH, filename)
     except:
         return 'File not found', 404
 
 @app.route('/<path:path>')
 def catch_all(path):
     try:
-        return send_from_directory('../../frontend/businessIntelligence/build', 'index.html')
+        return send_from_directory(FRONTEND_BUILD_PATH, 'index.html')
     except:
         return '<h1>Kea Business Intelligence</h1><p>Página não encontrada</p>'
 
@@ -97,7 +112,12 @@ def get_customer_metrics():
     })
 
 if __name__ == '__main__':
-    print("Servidor iniciando...")
-    print("API: http://0.0.0.0:5000/api/test")
-    print("Auth: http://0.0.0.0:5000/api/auth/login")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.getenv('SERVER_PORT', 5000))
+    debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    environment = os.getenv('ENVIRONMENT', 'development')
+    
+    print(f"Servidor iniciando - {environment.upper()}...")
+    print(f"API: http://0.0.0.0:{port}/api/test")
+    print(f"Auth: http://0.0.0.0:{port}/api/auth/login")
+    print(f"Frontend: http://0.0.0.0:{port}/")
+    app.run(debug=debug, host='0.0.0.0', port=port)

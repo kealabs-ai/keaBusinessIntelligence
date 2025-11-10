@@ -3,9 +3,20 @@ pipeline {
     
     environment {
         APP_NAME = 'kea-business-intelligence'
-        BUILD_DIR = 'frontend/businessIntelligence/build'
-        NODE_HOME = '/var/jenkins_home/nodejs'
-        PATH = "${NODE_HOME}/bin:${env.PATH}"
+        DOCKER_BUILDKIT = '1'
+    }
+    
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['all', 'development', 'homologation', 'production'],
+            description: 'Ambiente para deploy'
+        )
+        booleanParam(
+            name: 'FORCE_REBUILD',
+            defaultValue: false,
+            description: 'Forçar rebuild das imagens Docker'
+        )
     }
     
     stages {
@@ -15,263 +26,144 @@ pipeline {
             }
         }
         
-        stage('Install Node.js') {
+        stage('Cleanup') {
             steps {
                 sh '''
-                    # Verificar se Node.js já está instalado
-                    if [ -f "$NODE_HOME/bin/node" ]; then
-                        echo "Node.js já instalado: $(node --version)"
-                        echo "NPM versão: $(npm --version)"
-                    else
-                        echo "Instalando Node.js via binário..."
-                        
-                        # Download e instalação direta do Node.js
-                        cd /tmp
-                        curl -L -o node-v18.19.0-linux-x64.tar.gz https://nodejs.org/dist/v18.19.0/node-v18.19.0-linux-x64.tar.gz
-                        tar -xzf node-v18.19.0-linux-x64.tar.gz
-                        
-                        # Instalar em diretório local
-                        mkdir -p $NODE_HOME
-                        cp -r node-v18.19.0-linux-x64/* $NODE_HOME/
-                        
-                        # Verificar instalação
-                        echo "Node.js instalado: $(node --version)"
-                        echo "NPM versão: $(npm --version)"
-                        
-                        # Limpar arquivos temporários
-                        rm -rf /tmp/node-v18.19.0-linux-x64*
+                    # Parar todos os containers existentes
+                    docker-compose -f docker/docker-compose.dev.yml down || true
+                    docker-compose -f docker/docker-compose.hml.yml down || true
+                    docker-compose -f docker/docker-compose.prod.yml down || true
+                    
+                    # Limpar imagens antigas se forçado
+                    if [ "${params.FORCE_REBUILD}" = "true" ]; then
+                        docker system prune -f
+                        docker rmi $(docker images kea* -q) || true
                     fi
                 '''
             }
         }
         
-        stage('Build Frontend') {
-            steps {
-                dir('frontend/businessIntelligence') {
-                    sh '''
-                        echo "Verificando package.json..."
-                        if [ -f package.json ]; then
-                            echo "package.json encontrado"
-                            
-                            echo "Instalando dependências..."
-                            npm install --verbose
-                            
-                            echo "Construindo aplicação..."
-                            npm run build
-                            
-                            echo "Verificando build..."
-                            if [ -d build ]; then
-                                echo "Build criado com sucesso!"
-                                ls -la build/
-                            else
-                                echo "ERRO: Pasta build não foi criada!"
-                                exit 1
-                            fi
-                        else
-                            echo "ERRO: package.json não encontrado!"
-                            echo "Criando build básico..."
-                            mkdir -p build
-                            echo "<h1>Kea Business Intelligence</h1>" > build/index.html
-                        fi
-                    '''
+        stage('Deploy Development') {
+            when {
+                anyOf {
+                    expression { params.ENVIRONMENT == 'all' }
+                    expression { params.ENVIRONMENT == 'development' }
                 }
             }
+            steps {
+                sh '''
+                    echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
+                    docker-compose -f docker/docker-compose.dev.yml up --build -d
+                    
+                    # Aguardar inicialização
+                    sleep 30
+                    
+                    # Health check
+                    for i in {1..10}; do
+                        if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
+                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            echo "✅ DESENVOLVIMENTO OK - http://$SERVER_IP:6002/"
+                            break
+                        else
+                            echo "Aguardando desenvolvimento... ($i/10)"
+                            sleep 10
+                        fi
+                    done
+                '''
+            }
         }
         
-        stage('Test Frontend') {
-            steps {
-                dir('frontend/businessIntelligence') {
-                    sh '''
-                        if [ -f package.json ]; then
-                            npm test -- --coverage --watchAll=false --passWithNoTests || echo "Testes executados"
-                        else
-                            echo "Sem testes para executar"
-                        fi
-                    '''
+        stage('Deploy Homologation') {
+            when {
+                anyOf {
+                    expression { params.ENVIRONMENT == 'all' }
+                    expression { params.ENVIRONMENT == 'homologation' }
                 }
             }
-        }
-        
-        stage('Deploy to Development') {
             steps {
                 sh '''
-                    # Criar diretório de deploy
-                    DEV_PATH="/var/jenkins_home/workspace/deploy/kea-bi-dev"
-                    mkdir -p $DEV_PATH
+                    echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
+                    docker-compose -f docker/docker-compose.hml.yml up --build -d
                     
-                    # Copiar arquivos de build
-                    if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* $DEV_PATH/ || true
-                        echo "✅ Arquivos copiados para: $DEV_PATH"
-                        ls -la $DEV_PATH
-                    fi
+                    # Aguardar inicialização
+                    sleep 30
                     
-                    # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    
-                    # Informações de deploy
-                    echo "==================== DEPLOY DEVELOPMENT ===================="
-                    echo "✅ Build concluído com sucesso!"
-                    echo "✅ Caminho de deploy: $DEV_PATH"
-                    echo "✅ Ambiente: Desenvolvimento"
-                    echo "✅ Branch: develop"
-                    echo ""
-                    echo "🌐 URLs DE ACESSO DESENVOLVIMENTO:"
-                    echo "📱 Frontend: http://$SERVER_IP:6002/"
-                    echo "🔌 API: http://$SERVER_IP:6002/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:6002/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:6002/dashboard"
-                    echo "========================================================="
+                    # Health check
+                    for i in {1..10}; do
+                        if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
+                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            echo "✅ HOMOLOGAÇÃO OK - http://$SERVER_IP:6001/"
+                            break
+                        else
+                            echo "Aguardando homologação... ($i/10)"
+                            sleep 10
+                        fi
+                    done
                 '''
             }
         }
         
-        stage('Deploy to Homologation') {
+        stage('Deploy Production') {
+            when {
+                anyOf {
+                    expression { params.ENVIRONMENT == 'all' }
+                    expression { params.ENVIRONMENT == 'production' }
+                }
+            }
             steps {
                 sh '''
-                    HML_PATH="/var/jenkins_home/workspace/deploy/kea-bi-hml"
-                    mkdir -p $HML_PATH
+                    echo "🔴 Iniciando deploy PRODUÇÃO..."
+                    docker-compose -f docker/docker-compose.prod.yml up --build -d
                     
-                    if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* $HML_PATH/ || true
-                        echo "✅ Arquivos copiados para: $HML_PATH"
-                        ls -la $HML_PATH
-                    fi
+                    # Aguardar inicialização
+                    sleep 30
                     
-                    # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
-                    
-                    echo "==================== DEPLOY HOMOLOGATION =================="
-                    echo "✅ Deploy realizado com sucesso!"
-                    echo "✅ Caminho de deploy: $HML_PATH"
-                    echo "✅ Ambiente: Homologação"
-                    echo "✅ Branch: ${BRANCH_NAME}"
-                    echo ""
-                    echo "🌐 URLs DE ACESSO HOMOLOGAÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:6001/"
-                    echo "🔌 API: http://$SERVER_IP:6001/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:6001/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:6001/dashboard"
-                    echo "========================================================="
+                    # Health check
+                    for i in {1..10}; do
+                        if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
+                            SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                            echo "✅ PRODUÇÃO OK - http://$SERVER_IP:6000/"
+                            break
+                        else
+                            echo "Aguardando produção... ($i/10)"
+                            sleep 10
+                        fi
+                    done
                 '''
             }
         }
-        
-        stage('Deploy to Production') {
+        stage('Summary') {
             steps {
                 sh '''
-                    PROD_PATH="/var/jenkins_home/workspace/deploy/kea-bi-prod"
-                    mkdir -p $PROD_PATH
-                    
-                    if [ -d "frontend/businessIntelligence/build" ]; then
-                        cp -r frontend/businessIntelligence/build/* $PROD_PATH/ || true
-                        echo "✅ Arquivos copiados para: $PROD_PATH"
-                        ls -la $PROD_PATH
-                    fi
-                    
-                    # Obter IP do servidor
+                    echo "==================== DEPLOY SUMMARY ===================="
                     SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
                     
-                    echo "==================== DEPLOY PRODUCTION ====================="
-                    echo "✅ Deploy realizado com sucesso!"
-                    echo "✅ Caminho de deploy: $PROD_PATH"
-                    echo "✅ Ambiente: Produção"
-                    echo "✅ Branch: ${BRANCH_NAME}"
+                    echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY CONCLUÍDO"
+                    echo "📅 Data: $(date)"
+                    echo "🌿 Branch: ${BRANCH_NAME}"
+                    echo "🎯 Ambiente: ${params.ENVIRONMENT}"
                     echo ""
-                    echo "🌐 URLs DE ACESSO PRODUÇÃO:"
-                    echo "📱 Frontend: http://$SERVER_IP:6000/"
-                    echo "🔌 API: http://$SERVER_IP:6000/api/test"
-                    echo "🔐 Login: http://$SERVER_IP:6000/api/auth/login"
-                    echo "📊 Dashboard: http://$SERVER_IP:6000/dashboard"
-                    echo "========================================================="
-                '''
-            }
-        }
-        
-
-        
-        stage('Start Services') {
-            steps {
-                sh '''
-                    echo "==================== INICIANDO SERVIÇOS =================="
                     
-                    # Obter IP do servidor
-                    SERVER_IP=$(curl -s ifconfig.me || echo "localhost")
+                    # Verificar status dos containers
+                    echo "📊 STATUS DOS CONTAINERS:"
+                    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep kea-bi || echo "Nenhum container rodando"
+                    echo ""
                     
-                    # Parar serviços existentes
-                    pkill -f "python.*start_" || true
-                    pkill -f "python.*app.py" || true
-                    sleep 5
+                    # URLs de acesso
+                    echo "🌐 URLs DE ACESSO:"
                     
-                    # Copiar arquivos para deploy
-                    DEPLOY_PATH="/var/jenkins_home/workspace/deploy/kea-bi"
-                    mkdir -p $DEPLOY_PATH
-                    cp -r . $DEPLOY_PATH/ || true
-                    
-                    # Instalar dependências
-                    cd $DEPLOY_PATH
-                    python3 -m pip install -r requirements.txt 2>/dev/null || echo "Dependências já instaladas"
-                    
-                    # Iniciar serviços por ambiente
-                    export PYTHONPATH=$DEPLOY_PATH:$PYTHONPATH
-                    
-                    # Desenvolvimento (porta 6002)
-                    nohup python3 start_dev.py > /var/jenkins_home/workspace/deploy/dev.log 2>&1 &
-                    echo "Serviço de desenvolvimento iniciado na porta 6002"
-                    
-                    # Homologação (porta 6001)
-                    nohup python3 start_hml.py > /var/jenkins_home/workspace/deploy/hml.log 2>&1 &
-                    echo "Serviço de homologação iniciado na porta 6001"
-                    
-                    # Produção (porta 6000)
-                    nohup python3 start_prod.py > /var/jenkins_home/workspace/deploy/prod.log 2>&1 &
-                    echo "Serviço de produção iniciado na porta 6000"
-                    
-                    # Aguardar serviços iniciarem
-                    sleep 15
-                    
-                    # Verificar se estão rodando
-                    echo "Verificando serviços..."
-                    
-                    if curl -f http://localhost:6002/api/test > /dev/null 2>&1; then
-                        echo "✅ Desenvolvimento (6002) - OK"
-                    else
-                        echo "❌ Desenvolvimento (6002) - ERRO"
+                    if docker ps | grep -q kea-bi-production; then
+                        echo "🔴 PRODUÇÃO: http://$SERVER_IP:6000/"
                     fi
                     
-                    if curl -f http://localhost:6001/api/test > /dev/null 2>&1; then
-                        echo "✅ Homologação (6001) - OK"
-                    else
-                        echo "❌ Homologação (6001) - ERRO"
+                    if docker ps | grep -q kea-bi-homologation; then
+                        echo "🟡 HOMOLOGAÇÃO: http://$SERVER_IP:6001/"
                     fi
                     
-                    if curl -f http://localhost:6000/api/test > /dev/null 2>&1; then
-                        echo "✅ Produção (6000) - OK"
-                    else
-                        echo "❌ Produção (6000) - ERRO"
+                    if docker ps | grep -q kea-bi-development; then
+                        echo "🟢 DESENVOLVIMENTO: http://$SERVER_IP:6002/"
                     fi
                     
-                    echo ""
-                    echo "🎉 KEA BUSINESS INTELLIGENCE - DEPLOY COMPLETO:"
-                    echo "🌐 URLs DE ACESSO POR AMBIENTE:"
-                    echo ""
-                    echo "🔴 PRODUÇÃO (Porta 6000):"
-                    echo "   📱 Frontend: http://$SERVER_IP:6000/"
-                    echo "   🔌 API: http://$SERVER_IP:6000/api/test"
-                    echo "   🔐 Login: http://$SERVER_IP:6000/api/auth/login"
-                    echo ""
-                    echo "🟡 HOMOLOGAÇÃO (Porta 6001):"
-                    echo "   📱 Frontend: http://$SERVER_IP:6001/"
-                    echo "   🔌 API: http://$SERVER_IP:6001/api/test"
-                    echo "   🔐 Login: http://$SERVER_IP:6001/api/auth/login"
-                    echo ""
-                    echo "🟢 DESENVOLVIMENTO (Porta 6002):"
-                    echo "   📱 Frontend: http://$SERVER_IP:6002/"
-                    echo "   🔌 API: http://$SERVER_IP:6002/api/test"
-                    echo "   🔐 Login: http://$SERVER_IP:6002/api/auth/login"
-                    echo ""
-                    echo "📄 Logs: /var/jenkins_home/workspace/deploy/"
-                    echo "📁 Deploy: $DEPLOY_PATH"
                     echo "========================================================="
                 '''
             }
