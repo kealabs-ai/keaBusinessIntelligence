@@ -26,58 +26,27 @@ pipeline {
             }
         }
         
-        stage('Setup') {
+        stage('Deploy to Container') {
             steps {
                 sh '''
-                    # Verificar Python disponível
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
+                    # Deploy para container existente
+                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    echo "✅ Usando: $PYTHON_CMD"
+                    # Parar processos no container
+                    docker exec $CONTAINER_ID pkill -f "python.*start_" || true
                     
-                    # Instalar Python deps
-                    if [ -f "requirements_simple.txt" ]; then
-                        $PYTHON_CMD -m pip install -r requirements_simple.txt || true
-                    elif [ -f "requirements.txt" ]; then
-                        $PYTHON_CMD -m pip install -r requirements.txt || true
-                    else
-                        echo "⚠️ Nenhum arquivo requirements encontrado"
-                    fi
+                    # Copiar código para container
+                    docker cp . $CONTAINER_ID:/app/
                     
-                    # Parar processos existentes
-                    pkill -f "python.*start_" || true
-                    sleep 5
+                    # Instalar dependências no container
+                    docker exec $CONTAINER_ID python -m pip install -r /app/requirements_simple.txt || true
                     
-                    echo "✅ Setup concluído"
+                    echo "✅ Deploy para container concluído"
                 '''
             }
         }
         
-        stage('Build Frontend') {
-            steps {
-                sh '''
-                    # Build frontend
-                    cd frontend/businessIntelligence
-                    
-                    # Instalar Node.js se necessário
-                    if ! command -v node &> /dev/null; then
-                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash - || true
-                        apt-get install -y nodejs || yum install -y nodejs || true
-                    fi
-                    
-                    npm install || true
-                    npm run build || true
-                    
-                    echo "✅ Frontend build concluído"
-                '''
-            }
-        }
+
         
         stage('Deploy Development') {
             when {
@@ -89,27 +58,10 @@ pipeline {
             steps {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
+                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Copiar para deploy
-                    DEPLOY_DIR="/tmp/kea-bi-dev"
-                    rm -rf $DEPLOY_DIR
-                    mkdir -p $DEPLOY_DIR
-                    cp -r . $DEPLOY_DIR/
-                    
-                    cd $DEPLOY_DIR
-                    
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_dev.py > /tmp/kea-dev.log 2>&1 &
+                    # Iniciar serviço no container
+                    docker exec -d $CONTAINER_ID python /app/start_dev.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -122,17 +74,9 @@ pipeline {
                             break
                         else
                             echo "Aguardando desenvolvimento... ($i/10)"
-                            echo "Log: $(tail -5 /tmp/kea-dev.log)"
                             sleep 10
                         fi
                     done
-                    
-                    # Verificar se processo está rodando
-                    if ! ps aux | grep -q "start_dev.py"; then
-                        echo "❌ Processo não está rodando. Log completo:"
-                        cat /tmp/kea-dev.log
-                        exit 1
-                    fi
                 '''
             }
         }
@@ -147,27 +91,10 @@ pipeline {
             steps {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
+                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Copiar para deploy
-                    DEPLOY_DIR="/tmp/kea-bi-hml"
-                    rm -rf $DEPLOY_DIR
-                    mkdir -p $DEPLOY_DIR
-                    cp -r . $DEPLOY_DIR/
-                    
-                    cd $DEPLOY_DIR
-                    
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_hml.py > /tmp/kea-hml.log 2>&1 &
+                    # Iniciar serviço no container
+                    docker exec -d $CONTAINER_ID python /app/start_hml.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -197,27 +124,10 @@ pipeline {
             steps {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
+                    CONTAINER_ID="f79a4a4b7c0b"
                     
-                    # Copiar para deploy
-                    DEPLOY_DIR="/tmp/kea-bi-prod"
-                    rm -rf $DEPLOY_DIR
-                    mkdir -p $DEPLOY_DIR
-                    cp -r . $DEPLOY_DIR/
-                    
-                    cd $DEPLOY_DIR
-                    
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_prod.py > /tmp/kea-prod.log 2>&1 &
+                    # Iniciar serviço no container
+                    docker exec -d $CONTAINER_ID python /app/start_prod.py
                     
                     # Aguardar inicialização
                     sleep 20
