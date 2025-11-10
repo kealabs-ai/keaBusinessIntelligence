@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from backend.data.mysql_connection import MySQLConnection
-from backend.auth.token_manager import TokenManager
+from backend.auth.token_manager import TokenManager, token_required
 import hashlib
 
 auth_bp = Blueprint('auth', __name__)
@@ -69,3 +69,27 @@ def validate_token():
         'payment_status': payment_status,
         'expires': payload['exp']
     })
+
+@auth_bp.route('/deactivate', methods=['POST'])
+@token_required
+def deactivate_user():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id requerido'}), 400
+    
+    db = MySQLConnection()
+    if not db.connect():
+        return jsonify({'error': 'Erro de conexão com banco'}), 500
+    
+    try:
+        query = "UPDATE users SET payment_status = 'inactive' WHERE id = %s"
+        success = db.execute_non_query(query, (user_id,))
+        
+        if success:
+            return jsonify({'message': 'Usuário desativado com sucesso'})
+        else:
+            return jsonify({'error': 'Falha ao desativar usuário'}), 500
+    finally:
+        db.close()
