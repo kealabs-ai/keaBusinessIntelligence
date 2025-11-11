@@ -11,9 +11,9 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
     "recharts": "^2.8.0",
-    "@mui/lab": "^5.0.0",
-    "@mui/x-data-grid": "^6.0.0",
-    "@mui/x-date-pickers": "^6.0.0",
+    "@mui/lab": "^5.0.0-alpha.170",
+    "@mui/x-data-grid": "^6.19.11",
+    "@mui/x-date-pickers": "^6.19.9",
     "date-fns": "^2.30.0"
   },
   "scripts": {

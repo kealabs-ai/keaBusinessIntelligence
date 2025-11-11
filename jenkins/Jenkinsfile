@@ -33,8 +33,12 @@ pipeline {
                     docker stop kea-bi-app || true
                     docker rm kea-bi-app || true
                     
-                    # Build imagem
-                    docker build -t kea-bi:latest -f docker/Dockerfile .
+                    # Build imagem com cache busting se forçado
+                    if [ "$FORCE_REBUILD" = "true" ]; then
+                        docker build --no-cache -t kea-bi:latest -f docker/Dockerfile .
+                    else
+                        docker build -t kea-bi:latest -f docker/Dockerfile .
+                    fi
                     
                     # Iniciar container
                     docker run -d --name kea-bi-app \
