@@ -15,4 +15,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - SERVER_PORT=6000
+    user: root
+    privileged: true
     restart: unless-stopped
+    command: python start_container.py

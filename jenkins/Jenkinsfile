@@ -26,33 +26,23 @@ pipeline {
             }
         }
         
-        stage('Setup Environment') {
+        stage('Setup Container') {
             steps {
                 sh '''
-                    # Verificar Python disponível
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
+                    # Parar container existente
+                    docker stop kea-bi-app || true
+                    docker rm kea-bi-app || true
                     
-                    echo "✅ Usando: $PYTHON_CMD"
+                    # Iniciar container
+                    docker-compose -f docker/docker-compose.existing.yml up -d --build
                     
-                    # Instalar dependências
-                    if [ -f "requirements_simple.txt" ]; then
-                        $PYTHON_CMD -m pip install -r requirements_simple.txt || true
-                    elif [ -f "requirements.txt" ]; then
-                        $PYTHON_CMD -m pip install -r requirements.txt || true
-                    fi
+                    # Aguardar container iniciar
+                    sleep 30
                     
-                    # Parar processos existentes
-                    pkill -f "python.*start_" || true
-                    sleep 5
+                    # Instalar dependências no container
+                    docker exec kea-bi-app python -m pip install -r requirements_simple.txt || true
                     
-                    echo "✅ Ambiente configurado"
+                    echo "✅ Container configurado"
                 '''
             }
         }
@@ -70,18 +60,8 @@ pipeline {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_dev.py > /tmp/kea-dev.log 2>&1 &
+                    # Executar no container
+                    docker exec -d kea-bi-app python start_dev.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -112,18 +92,8 @@ pipeline {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_hml.py > /tmp/kea-hml.log 2>&1 &
+                    # Executar no container
+                    docker exec -d kea-bi-app python start_hml.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -154,18 +124,8 @@ pipeline {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
                     
-                    # Detectar Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD="python"
-                    else
-                        echo "❌ Python não encontrado"
-                        exit 1
-                    fi
-                    
-                    # Iniciar serviço
-                    nohup $PYTHON_CMD start_prod.py > /tmp/kea-prod.log 2>&1 &
+                    # Executar no container (já rodando por padrão)
+                    # Container já inicia com produção
                     
                     # Aguardar inicialização
                     sleep 20
