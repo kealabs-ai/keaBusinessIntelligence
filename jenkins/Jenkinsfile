@@ -29,20 +29,34 @@ pipeline {
         stage('Setup Container') {
             steps {
                 sh '''
-                    # Parar container existente
-                    docker stop kea-bi-app || true
-                    docker rm kea-bi-app || true
-                    
-                    # Iniciar container
-                    docker-compose -f docker/docker-compose.existing.yml up -d --build
-                    
-                    # Aguardar container iniciar
-                    sleep 30
-                    
-                    # Instalar dependências no container
-                    docker exec kea-bi-app python -m pip install -r requirements_simple.txt || true
-                    
-                    echo "✅ Container configurado"
+                    # Executar como root
+                    sudo su - root -c "
+                        cd /var/jenkins_home/workspace/kea-bi-devops
+                        
+                        # Parar container existente
+                        docker stop kea-bi-app || true
+                        docker rm kea-bi-app || true
+                        
+                        # Build imagem
+                        docker build -t kea-bi:latest -f docker/Dockerfile .
+                        
+                        # Iniciar container
+                        docker run -d --name kea-bi-app \
+                            -p 6000:6000 -p 6001:6001 -p 6002:6002 \
+                            --env-file .env.prod \
+                            -e ENVIRONMENT=production \
+                            -e SERVER_PORT=6000 \
+                            --user root \
+                            kea-bi:latest
+                        
+                        # Aguardar container iniciar
+                        sleep 30
+                        
+                        # Instalar dependências no container
+                        docker exec kea-bi-app python -m pip install -r requirements_simple.txt || true
+                        
+                        echo '✅ Container configurado'
+                    "
                 '''
             }
         }
@@ -60,8 +74,8 @@ pipeline {
                 sh '''
                     echo "🟢 Iniciando deploy DESENVOLVIMENTO..."
                     
-                    # Executar no container
-                    docker exec -d kea-bi-app python start_dev.py
+                    # Executar no container como root
+                    sudo docker exec -d kea-bi-app python /app/start_dev.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -92,8 +106,8 @@ pipeline {
                 sh '''
                     echo "🟡 Iniciando deploy HOMOLOGAÇÃO..."
                     
-                    # Executar no container
-                    docker exec -d kea-bi-app python start_hml.py
+                    # Executar no container como root
+                    sudo docker exec -d kea-bi-app python /app/start_hml.py
                     
                     # Aguardar inicialização
                     sleep 20
@@ -124,8 +138,8 @@ pipeline {
                 sh '''
                     echo "🔴 Iniciando deploy PRODUÇÃO..."
                     
-                    # Executar no container (já rodando por padrão)
-                    # Container já inicia com produção
+                    # Executar no container como root
+                    sudo docker exec -d kea-bi-app python /app/start_prod.py
                     
                     # Aguardar inicialização
                     sleep 20
